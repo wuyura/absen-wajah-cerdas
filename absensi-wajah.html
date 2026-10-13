@@ -18,7 +18,19 @@ async function getDescriptor(){if(!ready||!stream)throw Error('Aktifkan kamera d
 $('register').onclick=async()=>{let n=$('name').value.trim();if(!n)return msg('regStatus','Masukkan nama siswa.','error');msg('regStatus','Memproses wajah…');try{let d=await getDescriptor();students.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),name:n,cls:$('cls').value,code:$('code').value.trim(),descriptor:d});save();$('name').value='';$('code').value='';msg('regStatus','Pendaftaran wajah tersimpan di browser ini.','success')}catch(e){msg('regStatus',e.message,'error')}buttons()};
 $('recognize').onclick=async()=>{try{let d=await getDescriptor();if(!students.length)throw Error('Daftarkan siswa terlebih dahulu');let m=students.map(s=>({s,d:faceapi.euclideanDistance(d,s.descriptor)})).sort((a,b)=>a.d-b.d)[0];if(m.d>.52)throw Error('Tidak ada kecocokan yang cukup kuat');if(m.s.cls!==$('sessionClass').value)throw Error('Wajah cocok dengan '+m.s.name+' dari kelas '+m.s.cls+'. Periksa kelas sesi.');session[m.s.id]={time:new Date().toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),date:new Date().toLocaleDateString('sv-SE'),subject:$('subject').value};render();msg('cameraStatus','Kandidat: '+m.s.name+'. Cocok perkiraan '+Math.round((1-m.d)*100)+'%. Guru harus mengonfirmasi identitas.','success')}catch(e){msg('cameraStatus',e.message,'error')}buttons()};
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
-function remove(id){if(confirm('Hapus template wajah siswa dari browser?')){students=students.filter(s=>s.id!==id);delete session[id];save()}}
-function render(){$('count').textContent=students.length;$('present').textContent=Object.keys(session).length;$('rows').innerHTML=students.map(s=>'<tr><td>'+esc(s.name)+'<div class="muted">'+esc(s.code||'')+'</div></td><td>'+esc(s.cls)+'</td><td>'+(session[s.id]?'Hadir '+esc(session[s.id].time):'Belum hadir')+'</td><td><button onclick="remove(\\''+s.id+'\\')">Hapus</button></td></tr>').join('')||'<tr><td colspan="4">Belum ada siswa.</td></tr>'}
+function remove(id){if(confirm('Hapus template wajah siswa dari browser?')){students=students.filter(s=>s.id!==id);delete session[id];save()}}function render(){
+  $('count').textContent=students.length;
+  $('present').textContent=Object.keys(session).length;
+  $('rows').innerHTML=students.map(s=>
+    '<tr><td>'+esc(s.name)+'<div class="muted">'+esc(s.code||'')+
+    '</div></td><td>'+esc(s.cls)+'</td><td>'+
+    (session[s.id]?'Hadir '+esc(session[s.id].time):'Belum hadir')+
+    '</td><td><button type="button" data-remove="'+esc(s.id)+
+    '">Hapus</button></td></tr>'
+  ).join('')||'<tr><td colspan="4">Belum ada siswa.</td></tr>';
+  $('rows').querySelectorAll('[data-remove]').forEach(b=>{
+    b.onclick=()=>remove(b.dataset.remove);
+  });
+}
 $('reset').onclick=()=>{if(confirm('Reset status hadir sesi ini?')){session={};render()}};$('export').onclick=()=>{let data=[['Nama','Kode','Kelas','Tanggal','Waktu','Mapel','Status'],...students.map(s=>[s.name,s.code,s.cls,session[s.id]?.date||'',session[s.id]?.time||'',session[s.id]?.subject||$('subject').value,session[s.id]?'Hadir':'Belum hadir'])];let csv=data.map(r=>r.map(x=>'"'+String(x??'').replace(/"/g,'""')+'"').join(',')).join('\\r\\n'),a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\\ufeff'+csv],{type:'text/csv;charset=utf-8'}));a.download='rekap-absensi-wajah.csv';a.click();URL.revokeObjectURL(a.href)};window.addEventListener('beforeunload',()=>stream?.getTracks().forEach(t=>t.stop()));render();init();
 </script></body></html>
