@@ -1,0 +1,652 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#edf8ff">
+<title>Absen Wajah Cerdas — Pendaftaran</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#edf8ff;color:#17365f;font:16px system-ui,Arial,sans-serif}
+.wrap{max-width:1080px;margin:auto;padding:18px}
+h1,h2{color:#12356c}
+h1{font-size:clamp(1.8rem,4vw,2.5rem)}
+.muted{color:#647891;font-size:.9rem}
+.back{color:#0869bd;text-decoration:none;font-weight:650}
+.status{padding:11px 13px;border-radius:10px;background:#eef8ff;margin:12px 0;overflow-wrap:anywhere}
+.success{background:#e0f8eb;color:#087749}.error{background:#fff0f1;color:#a61e38}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.panel{background:#fff;border:1px solid #d9eaf5;border-radius:18px;padding:18px;margin:16px 0;min-width:0}
+.camera{position:relative;background:#10284d;border-radius:13px;aspect-ratio:4/3;display:grid;place-items:center;color:white;overflow:hidden}
+.camera video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+#detectionOverlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:none}
+.detection-feedback{transition:background .15s,border-color .15s}
+.detection-feedback.detected{border-color:#e87979;background:#fff5f5}
+.detection-feedback.matched{border-color:#20a464;background:#f0fff6}
+.detection-feedback.unknown{border-color:#d96b79;background:#fff5f6}
+label{display:block;font-weight:600;margin:12px 0 5px}
+input,select,button{font:inherit;border-radius:10px;padding:11px 12px}
+input,select{width:100%;border:1px solid #d9eaf5;background:white;color:#172b43}
+button{border:0;background:#e8f5ff;color:#135a9a;font-weight:700;cursor:pointer;margin:4px 4px 4px 0;min-height:43px}
+button.primary{background:#0869bd;color:white}button.good{background:#d9f8e8;color:#087749}
+button:disabled{opacity:.48;cursor:not-allowed}
+.actions{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px}
+.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:.92rem}
+td,th{text-align:left;padding:10px;border-bottom:1px solid #eaf2f8;vertical-align:top}
+.notice{border-left:4px solid #e0a329;padding:10px 13px;background:#fff8e8;border-radius:6px}
+@media(max-width:720px){.wrap{padding:12px}.grid{grid-template-columns:1fr}.panel{padding:14px}}
+
+/* Tampilan ringkas: navigasi tab agar tidak perlu menggulir seluruh halaman */
+.tab-nav{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 12px;margin:0 0 10px;position:sticky;top:0;z-index:20;background:#eef8ff;scrollbar-width:thin}
+.tab-nav button{flex:0 0 auto;border:1px solid #d7e7f5;border-radius:12px;background:#fff;color:#17365d;padding:10px 13px;font-weight:700;font-size:13px}
+.tab-nav button.active{background:#1675bb;color:#fff;border-color:#1675bb}
+.grid > section.panel{display:none!important}.grid > section.panel.tab-active{display:block!important}.grid > section.panel.tab-hidden{display:none!important}
+.wrap{max-width:1000px}
+@media(min-width:760px){.wrap{padding:16px}.tab-nav{flex-wrap:wrap;position:sticky}.panel{min-width:0}}
+@media(max-width:759px){.wrap{padding:10px}.tab-nav{margin-left:-2px;margin-right:-2px}.tab-nav button{padding:10px 12px}}
+
+
+/* Ikon garis modern dan minimalis */
+.tab-nav button{display:inline-flex;align-items:center;justify-content:center;gap:7px;letter-spacing:.01em}
+.nav-icon{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab-nav button.active .nav-icon{stroke-width:2}
+\n
+.registration-camera{margin:10px 0 14px;padding:10px;border:1px solid #d9eaf5;border-radius:14px;background:#f8fcff}
+.registration-camera .camera{max-width:420px;aspect-ratio:4/3;margin:0 auto;background:#10284d}
+#registrationVideo{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
+#registrationPlaceholder{padding:12px;text-align:center}
+#goToCamera{margin-top:6px}
+.detection-feedback{display:flex;align-items:center;gap:12px;margin-top:10px;padding:12px;border:1px solid #d7e7f5;border-radius:12px;background:#f7fbff;color:#17365d;font-size:13px;min-height:68px}
+.detection-mark{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:50%;background:#e1f5e9;color:#087443;font-size:25px;font-weight:700}
+#detectionSnapshot{width:88px;height:66px;object-fit:cover;border-radius:8px;border:2px solid #16834a;margin-left:auto}
+#detectionSnapshot[hidden]{display:none}
+\n</style>
+</head>
+<body>
+<main class="wrap">
+
+<nav class="tab-nav" aria-label="Navigasi fitur absensi">
+  <button type="button" class="active" data-tab="0"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="4"/><path d="M8 6l1.5-2h5L16 6"/></svg><span>Absensi</span></button>
+  <button type="button" data-tab="1"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Jadwal</span></button>
+  <button type="button" data-tab="2"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Kelas</span></button>
+  <button type="button" data-tab="3"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.7-4 3.5-6 8-6s7.3 2 8 6"/></svg><span>Daftar wajah</span></button>
+  <button type="button" data-tab="4"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h4M10 12h6M10 16h6"/></svg><span>Rekap</span></button>
+  <button type="button" data-tab="5"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Panduan</span></button>
+</nav>
+
+<a class="back" href="./">← Dashboard utama</a>
+<h1>Absen Wajah Cerdas</h1>
+<p class="muted">Pendaftaran wajah satu kali · pemindaian otomatis saat kamera aktif · kotak deteksi langsung di kamera</p>
+<div id="modelStatus" class="status" role="status" aria-live="polite">Memeriksa pustaka pengenalan wajah…</div>
+<div class="grid">
+<section class="panel">
+<h2>1. Kamera absensi</h2>
+<div class="camera"><video id="video" autoplay muted playsinline></video><canvas id="detectionOverlay" aria-hidden="true"></canvas><span id="placeholder">Kamera belum aktif</span></div>
+<div class="actions"><button id="startCamera" class="primary" type="button">Aktifkan kamera</button><button id="stopCamera" type="button" disabled>Matikan kamera</button></div>
+<label for="sessionClass">Kelas sesi</label>
+<select id="sessionClass"><option value="">Pilih kelas</option></select>
+<label for="subject">Mata pelajaran</label><input id="subject" value="Informatika">
+<div class="actions"><button id="recognize" class="good" type="button" disabled>Pindai manual (cadangan)</button></div>
+<div id="cameraStatus" class="status" role="status" aria-live="polite">Aktifkan kamera untuk memulai pemindaian otomatis.</div>
+<div id="detectionFeedback" class="detection-feedback" aria-live="polite"><span class="detection-mark">◎</span><div><strong id="detectionTitle">Menunggu wajah</strong><div id="detectionDetail">Saat wajah dikenali dan absensi berhasil dicatat, foto cuplikan dan bunyi konfirmasi akan muncul.</div></div><img id="detectionSnapshot" alt="Cuplikan saat absensi berhasil" hidden></div>
+</section>
+<section class="panel">
+<h2>2. Pengaturan jam masuk</h2>
+<p class="muted">Atur jam masuk untuk kelas yang dipilih. Toleransi keterlambatan awalnya 10 menit dan dapat disesuaikan.</p>
+<label for="scheduleClass">Kelas yang diatur</label>
+<select id="scheduleClass"><option value="">Pilih kelas</option></select>
+<label for="scheduleSubject">Mata pelajaran (opsional; kosong = jadwal umum kelas)</label><input id="scheduleSubject" placeholder="Contoh: Informatika"><label for="startTime">Jam masuk</label><input id="startTime" type="time" value="07:00">
+<label for="graceMinutes">Toleransi (menit)</label><input id="graceMinutes" type="number" min="0" max="120" value="10">
+<div class="actions"><button id="saveSchedule" class="primary" type="button">Simpan jadwal kelas</button></div>
+<div id="scheduleStatus" class="status" role="status" aria-live="polite">Jadwal awal: 07.00 dengan toleransi 10 menit untuk semua kelas. Ubah sesuai jadwal mengajar.</div>
+<div class="scroll"><table><thead><tr><th>Kelas</th><th>Jam masuk</th><th>Batas tepat waktu</th></tr></thead><tbody id="scheduleRows"></tbody></table></div>
+</section>
+<section class="panel">
+<h2>3. Kelola daftar kelas</h2>
+<p class="muted">Tambahkan nama kelas bebas, misalnya “VII A Reguler”, “VIII Unggulan”, atau “Kelas Robotik”. Kelas akan tersedia pada pilihan sesi dan pendaftaran siswa.</p>
+<label for="newClassName">Nama kelas baru</label>
+<input id="newClassName" placeholder="Tulis nama kelas" maxlength="80">
+<div class="actions"><button id="addClass" class="primary" type="button">Tambah kelas</button></div>
+<div id="classStatus" class="status" role="status" aria-live="polite">Daftar kelas tersimpan di browser/perangkat ini.</div>
+<div class="scroll"><table><thead><tr><th>Nama kelas</th><th>Aksi</th></tr></thead><tbody id="classRows"></tbody></table></div>
+</section>
+<section class="panel">
+<h2>4. Daftarkan wajah</h2>
+<div class="registration-camera">
+  <div class="camera"><video id="registrationVideo" autoplay muted playsinline></video><span id="registrationPlaceholder">Aktifkan kamera dari tab Absensi</span></div>
+  <div id="registrationCameraStatus" class="status" role="status" aria-live="polite">Status kamera dan hasil deteksi akan tampil di sini.</div>
+  <button type="button" id="goToCamera" class="primary">Buka tab Absensi / Kamera</button>
+</div>
+<label for="studentName">Nama siswa</label><input id="studentName" placeholder="Nama lengkap" autocomplete="off">
+<label for="studentClass">Kelas</label>
+<select id="studentClass"><option value="">Pilih kelas</option></select>
+<label for="studentCode">NIS / kode opsional</label><input id="studentCode" placeholder="Kode siswa" autocomplete="off">
+<div class="actions"><button id="register" class="primary" type="button" disabled>Ambil wajah & simpan</button></div>
+<div id="registerStatus" class="status" role="status" aria-live="polite">Mesin pengenalan sedang diperiksa.</div>
+<p class="muted">Pastikan satu wajah terlihat, pencahayaan cukup, dan siswa menghadap kamera.</p>
+</section>
+</div>
+<section class="panel">
+<h2>5. Daftar siswa & rekap sesi</h2>
+<p>Terdaftar: <strong id="studentCount">0</strong> · Hadir: <strong id="presentCount">0</strong></p>
+<div class="actions"><button id="exportCsv" type="button">Ekspor CSV</button><button id="resetAttendance" type="button">Reset hadir sesi ini</button></div>
+<div class="scroll"><table><thead><tr><th>Nama</th><th>Kelas</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="studentRows"><tr><td colspan="4">Belum ada siswa terdaftar.</td></tr></tbody></table></div>
+</section>
+<section class="panel">
+<h2>Catatan penggunaan dan privasi</h2>
+<p class="notice">Ini prototipe pengujian. Template wajah tersimpan lokal di browser/perangkat ini, bukan di server. Hasil pencocokan dapat salah; verifikasi identitas dan sediakan absensi manual. Jangan gunakan data biometrik siswa sungguhan sebelum keamanan, persetujuan, retensi, dan penghapusan data ditetapkan.</p>
+</section>
+</main>
+<script src="https://unpkg.com/face-api.js@0.22.2/dist/face-api.js"></script>
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const STORAGE_KEY = 'awc-face-demo-v2';
+const SCHEDULE_KEY = 'awc-face-schedules-v1';
+const CLASS_KEY = 'awc-face-classes-v1';
+const ATTENDANCE_KEY = 'awc-attendance-sessions-v1';
+let classNames = [];
+let schedules = {};
+let stream = null, modelReady = false, students = [], attendance = {};
+let attendanceSessions = {};
+try { const savedAttendance = JSON.parse(localStorage.getItem(ATTENDANCE_KEY) || '{}'); attendanceSessions = savedAttendance && typeof savedAttendance === 'object' ? savedAttendance : {}; } catch (_) {}
+try {
+  const oldSchedule = JSON.parse(localStorage.getItem(SCHEDULE_KEY) || '{}');
+  schedules = oldSchedule && typeof oldSchedule === 'object' ? oldSchedule : {};
+} catch (_) {}
+try {
+  const savedClasses = JSON.parse(localStorage.getItem(CLASS_KEY) || 'null');
+  classNames = Array.isArray(savedClasses) ? savedClasses.filter(x => typeof x === 'string' && x.trim()) : [];
+} catch (_) {}
+if (!classNames.length) {
+  const fromStudents = students.map(s => s.cls).filter(Boolean);
+  classNames = [...new Set(['VII A','VII B','VII C','VIII A','VIII B','VIII C','IX A','IX B','IX C', ...fromStudents])];
+}
+classNames = [...new Set(classNames.map(x => x.trim()).filter(Boolean))];
+function persistClasses() {
+  localStorage.setItem(CLASS_KEY, JSON.stringify(classNames));
+}
+function scheduleKey(cls, subject='') {
+  return cls + '::' + (subject || '').trim().toLocaleLowerCase('id-ID');
+}
+// Variabel untuk pemindaian otomatis
+let autoTimer = null, autoBusy = false;
+// Wajah harus cocok pada dua pemindaian berturut-turut sebelum absensi otomatis dicatat.
+let stableMatchId = null, stableMatchCount = 0;
+
+try {
+  const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{"students":[]}');
+  students = Array.isArray(saved.students) ? saved.students : [];
+} catch (_) {}
+
+let lastDetectedFaces = [];
+function drawDetectionBoxes(faces, color = '#e87979') {
+  const canvas = $('detectionOverlay'), video = $('video');
+  if (!canvas || !video) return;
+  const ctx = canvas.getContext('2d');
+  if (!video.videoWidth || !video.videoHeight) return;
+  canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.lineWidth = Math.max(3, canvas.width / 240); ctx.strokeStyle = color;
+  ctx.fillStyle = color; ctx.font = `bold ${Math.max(18, canvas.width / 28)}px system-ui`;
+  (faces || []).forEach((face, i) => {
+    const b = face.detection ? face.detection.box : face.box;
+    if (!b) return;
+    ctx.strokeRect(b.x, b.y, b.width, b.height);
+    const label = (faces.length > 1 ? 'Wajah ' + (i + 1) : 'Wajah terdeteksi');
+    ctx.fillText(label, Math.max(4, b.x), Math.max(22, b.y - 8));
+  });
+  canvas.style.display = faces && faces.length ? 'block' : 'none';
+  lastDetectedFaces = faces || [];
+}
+function setFeedbackState(state, title, detail) {
+  const box = $('detectionFeedback'); if (!box) return;
+  box.classList.remove('detected','matched','unknown');
+  if (state) box.classList.add(state);
+  if (title) $('detectionTitle').textContent = title;
+  if (detail) $('detectionDetail').textContent = detail;
+}
+function setStatus(id, text, kind = '') {
+  const el = $(id);
+  if (el) {
+    el.textContent = text;
+    el.className = 'status' + (kind ? ' ' + kind : '');
+  }
+  // Pantulkan status deteksi ke tab Pendaftaran wajah agar hasil tetap terlihat.
+  if (id === 'cameraStatus') {
+    const mirror = $('registrationCameraStatus');
+    if (mirror) {
+      mirror.textContent = text;
+      mirror.className = 'status' + (kind ? ' ' + kind : '');
+    }
+  }
+}
+function updateButtons() {
+  const live = !!stream && stream.getVideoTracks().some(t => t.readyState === 'live');
+  $('register').disabled = !(modelReady && live);
+  $('recognize').disabled = !(modelReady && live);
+}
+function persist() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({students}));
+    render();
+    return true;
+  } catch (e) {
+    setStatus('registerStatus', 'Gagal menyimpan di browser: ' + e.message, 'error');
+    return false;
+  }
+}
+function scheduleFor(cls, subject='') {
+  return schedules[scheduleKey(cls, subject)] || schedules[scheduleKey(cls, '')] || {start:'07:00', grace:10};
+}
+function deadlineFor(cls, subject='') {
+  const s = scheduleFor(cls, subject);
+  const [h,m] = (s.start || '07:00').split(':').map(Number);
+  const total = h * 60 + m + Math.max(0, Number(s.grace) || 0);
+  return String(Math.floor((total % 1440) / 60)).padStart(2,'0') + ':' + String(total % 60).padStart(2,'0');
+}
+function statusFor(cls, now = new Date(), subject='') {
+  const s = scheduleFor(cls, subject);
+  const [h,m] = (s.start || '07:00').split(':').map(Number);
+  const startMinutes = h * 60 + m;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const grace = Math.max(0, Number(s.grace) || 0);
+  return nowMinutes <= startMinutes + grace ? 'Hadir tepat waktu' : 'Terlambat';
+}
+function fillClassSelect(id, preferred='') {
+  const el = $(id), previous = preferred || el.value;
+  el.replaceChildren();
+  const placeholder = document.createElement('option');
+  placeholder.value = ''; placeholder.textContent = classNames.length ? 'Pilih kelas' : 'Tambahkan kelas terlebih dahulu';
+  el.appendChild(placeholder);
+  classNames.forEach(cls => {
+    const opt = document.createElement('option'); opt.value=cls; opt.textContent=cls; el.appendChild(opt);
+  });
+  if (classNames.includes(previous)) el.value=previous;
+  else if (classNames.length) el.value=classNames[0];
+}
+function refreshClassSelects(preferred='') {
+  ['sessionClass','scheduleClass','studentClass'].forEach(id=>fillClassSelect(id,preferred));
+}
+function renderSchedules() {
+  const body = $('scheduleRows'); body.replaceChildren();
+  classNames.forEach(cls => {
+    const s = scheduleFor(cls, '');
+    const tr = document.createElement('tr');
+    [cls, s.start || '07:00', deadlineFor(cls, '')].forEach(v => {
+      const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+    });
+    body.appendChild(tr);
+  });
+}
+function loadScheduleEditor() {
+  const cls = $('scheduleClass').value;
+  if (!cls) return;
+  const subject = $('scheduleSubject').value.trim();
+  const s = scheduleFor(cls, subject);
+  $('startTime').value = s.start || '07:00';
+  $('graceMinutes').value = Number(s.grace ?? 10);
+}
+$('scheduleClass').addEventListener('change', loadScheduleEditor);
+$('scheduleSubject').addEventListener('change', loadScheduleEditor);
+$('saveSchedule').addEventListener('click', () => {
+  const cls = $('scheduleClass').value, subject = $('scheduleSubject').value.trim();
+  const start = $('startTime').value, grace = Number($('graceMinutes').value);
+  if (!cls) { setStatus('scheduleStatus','Pilih kelas terlebih dahulu.','error'); return; }
+  if (!start || !Number.isFinite(grace) || grace < 0 || grace > 120) {
+    setStatus('scheduleStatus', 'Isi jam masuk dan toleransi 0–120 menit dengan benar.', 'error'); return;
+  }
+  schedules[scheduleKey(cls, subject)] = {start, grace, subject};
+  try {
+    localStorage.setItem(SCHEDULE_KEY, JSON.stringify(schedules));
+    renderSchedules();
+    setStatus('scheduleStatus', 'Jadwal ' + cls + (subject ? ' untuk ' + subject : ' (jadwal umum)') + ' tersimpan. Batas tepat waktu sampai ' + deadlineFor(cls,subject) + '.', 'success');
+  } catch (e) { setStatus('scheduleStatus', 'Jadwal gagal disimpan di browser: ' + e.message, 'error'); }
+});
+function renderClasses() {
+  const body=$('classRows'); body.replaceChildren();
+  classNames.forEach(cls=>{
+    const tr=document.createElement('tr'), name=document.createElement('td'), actions=document.createElement('td');
+    name.textContent=cls;
+    const edit=document.createElement('button'); edit.type='button'; edit.textContent='Ubah nama';
+    edit.addEventListener('click',()=>{
+      const next=prompt('Nama kelas baru:',cls);
+      if(next===null)return;
+      const val=next.trim();
+      if(!val){setStatus('classStatus','Nama kelas tidak boleh kosong.','error');return;}
+      if(val!==cls && classNames.includes(val)){setStatus('classStatus','Nama kelas tersebut sudah ada.','error');return;}
+      classNames=classNames.map(x=>x===cls?val:x);
+      students.forEach(s=>{if(s.cls===cls)s.cls=val;});
+      Object.keys(schedules).forEach(k=>{
+        if(k.startsWith(cls+'::')) schedules[val+k.slice(cls.length)] = schedules[k], delete schedules[k];
+      });
+      try {persistClasses();localStorage.setItem(STORAGE_KEY,JSON.stringify({students}));localStorage.setItem(SCHEDULE_KEY,JSON.stringify(schedules));}
+      catch(e){setStatus('classStatus','Perubahan tidak dapat disimpan: '+e.message,'error');return;}
+      refreshClassSelects(val);renderClasses();renderSchedules();render();
+      setStatus('classStatus','Nama kelas berhasil diubah.','success');
+    });
+    const del=document.createElement('button'); del.type='button'; del.textContent='Hapus kelas';
+    del.addEventListener('click',()=>{
+      if(students.some(s=>s.cls===cls)){setStatus('classStatus','Kelas masih memiliki siswa terdaftar. Pindahkan atau hapus data siswa terlebih dahulu.','error');return;}
+      if(!confirm('Hapus kelas “'+cls+'” dan jadwalnya?'))return;
+      classNames=classNames.filter(x=>x!==cls);
+      Object.keys(schedules).forEach(k=>{if(k.startsWith(cls+'::'))delete schedules[k];});
+      try{persistClasses();localStorage.setItem(SCHEDULE_KEY,JSON.stringify(schedules));}
+      catch(e){setStatus('classStatus','Gagal menyimpan perubahan: '+e.message,'error');return;}
+      refreshClassSelects();renderClasses();renderSchedules();loadScheduleEditor();
+      setStatus('classStatus','Kelas berhasil dihapus.','success');
+    });
+    actions.append(edit,del);tr.append(name,actions);body.appendChild(tr);
+  });
+}
+$('addClass').addEventListener('click',()=>{
+  const cls=$('newClassName').value.trim();
+  if(!cls){setStatus('classStatus','Masukkan nama kelas.','error');return;}
+  if(classNames.some(x=>x.toLocaleLowerCase('id-ID')===cls.toLocaleLowerCase('id-ID'))){setStatus('classStatus','Nama kelas sudah ada.','error');return;}
+  classNames.push(cls);
+  try{persistClasses();}catch(e){classNames.pop();setStatus('classStatus','Kelas gagal disimpan: '+e.message,'error');return;}
+  $('newClassName').value='';refreshClassSelects(cls);renderClasses();renderSchedules();loadScheduleEditor();
+  setStatus('classStatus','Kelas '+cls+' berhasil ditambahkan dan siap dipilih.','success');
+});
+function currentSessionKey() {
+  const date = new Date().toLocaleDateString('sv-SE');
+  const cls = $('sessionClass')?.value || '';
+  const subject = ($('subject')?.value || '').trim().toLocaleLowerCase('id-ID');
+  return [date, cls, subject].join('::');
+}
+function saveAttendanceSession() {
+  try {
+    attendanceSessions[currentSessionKey()] = attendance;
+    localStorage.setItem(ATTENDANCE_KEY, JSON.stringify(attendanceSessions));
+    return true;
+  } catch (e) {
+    setStatus('cameraStatus', 'Kehadiran belum dapat disimpan di browser: ' + e.message, 'error');
+    return false;
+  }
+}
+function loadAttendanceSession() {
+  attendance = attendanceSessions[currentSessionKey()] || {};
+  render();
+}
+$('sessionClass').addEventListener('change', loadAttendanceSession);
+$('subject').addEventListener('change', loadAttendanceSession);
+function render() {
+  $('studentCount').textContent = students.length;
+  $('presentCount').textContent = Object.keys(attendance).length;
+  const body = $('studentRows');
+  body.replaceChildren();
+  if (!students.length) {
+    const tr = document.createElement('tr'), td = document.createElement('td');
+    td.colSpan = 4; td.textContent = 'Belum ada siswa terdaftar.';
+    tr.appendChild(td); body.appendChild(tr); return;
+  }
+  students.forEach(s => {
+    const tr = document.createElement('tr');
+    [s.name, s.cls, attendance[s.id] ? attendance[s.id].status + ' (' + attendance[s.id].time + ')' : 'Belum hadir'].forEach(v => {
+      const td = document.createElement('td'); td.textContent = v; tr.appendChild(td);
+    });
+    const td = document.createElement('td'), b = document.createElement('button');
+    b.type = 'button'; b.textContent = 'Hapus';
+    b.addEventListener('click', () => {
+      if (confirm('Hapus template wajah siswa ini dari browser?')) {
+        students = students.filter(x => x.id !== s.id);
+        delete attendance[s.id]; saveAttendanceSession(); persist();
+      }
+    });
+    td.appendChild(b); tr.appendChild(td); body.appendChild(tr);
+  });
+}
+async function loadModels() {
+  try {
+    if (!window.faceapi) throw Error('Pustaka face-api.js tidak termuat dari CDN.');
+    const base = 'https://cdn.jsdelivr.net/gh/justadudewhohacks/face-api.js@master/weights';
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(base),
+      faceapi.nets.faceLandmark68Net.loadFromUri(base),
+      faceapi.nets.faceRecognitionNet.loadFromUri(base)
+    ]);
+    modelReady = true;
+    setStatus('modelStatus', 'Mesin pengenalan wajah siap.', 'success');
+    setStatus('registerStatus', 'Mesin siap. Aktifkan kamera, lalu isi nama siswa.', 'success');
+  } catch (e) {
+    modelReady = false;
+    setStatus('modelStatus', 'Mesin belum siap: ' + e.message + ' Periksa internet atau pemblokir konten, lalu muat ulang.', 'error');
+    setStatus('registerStatus', 'Pendaftaran belum dapat dilakukan karena mesin belum siap.', 'error');
+  }
+  updateButtons();
+}
+$('startCamera').addEventListener('click', async () => {
+  if (!navigator.mediaDevices?.getUserMedia) {
+    setStatus('cameraStatus', 'Akses kamera tidak tersedia. Buka melalui HTTPS di browser yang mendukung kamera.', 'error');
+    return;
+  }
+  $('startCamera').disabled = true;
+  setStatus('cameraStatus', 'Meminta izin kamera…');
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}, audio:false});
+    const v = $('video'); v.srcObject = stream; v.style.display = 'block'; $('detectionOverlay').style.display = 'block';
+    $('placeholder').style.display = 'none';
+    const rv = $('registrationVideo');
+    if (rv) { rv.srcObject = stream; rv.style.display = 'block'; $('registrationPlaceholder').style.display = 'none'; rv.play().catch(()=>{}); }
+    await v.play();
+    $('stopCamera').disabled = false;
+    setStatus('cameraStatus', 'Kamera aktif. Mode otomatis berjalan; arahkan ke satu wajah.', 'success');
+    // Mulai pemindaian otomatis saat kamera aktif · kotak deteksi langsung di kamera
+    startAutoRecognition();
+  } catch (e) {
+    stream = null; $('startCamera').disabled = false;
+    setStatus('cameraStatus', 'Kamera gagal diaktifkan: ' + e.message + '. Periksa izin kamera browser.', 'error');
+  }
+  updateButtons();
+});
+$('stopCamera').addEventListener('click', () => {
+  if (autoTimer) { clearTimeout(autoTimer); autoTimer = null; }
+  if (stream) stream.getTracks().forEach(t => t.stop());
+  stream = null; stableMatchId = null; stableMatchCount = 0; $('video').srcObject = null; $('video').style.display = 'none'; $('detectionOverlay').style.display = 'none'; drawDetectionBoxes([]);
+  $('placeholder').style.display = 'block';
+  const rv = $('registrationVideo');
+  if (rv) { rv.srcObject = null; rv.style.display = 'none'; $('registrationPlaceholder').style.display = 'block'; }
+  $('startCamera').disabled = false; $('stopCamera').disabled = true;
+  setStatus('cameraStatus', 'Kamera dimatikan.'); updateButtons();
+});
+async function descriptor() {
+  if (!modelReady) throw Error('Mesin pengenalan belum siap. Periksa status di bagian atas.');
+  if (!stream) throw Error('Aktifkan kamera terlebih dahulu.');
+  const v = $('video');
+  if (v.readyState < 2) throw Error('Kamera sedang menyiapkan gambar. Tunggu sebentar.');
+  const faces = await faceapi.detectAllFaces(v, new faceapi.TinyFaceDetectorOptions({inputSize:416, scoreThreshold:.55}))
+    .withFaceLandmarks().withFaceDescriptors();
+  drawDetectionBoxes(faces, '#e87979');
+  if (faces.length !== 1) {
+    setFeedbackState(faces.length ? 'unknown' : '', faces.length ? 'Terdeteksi lebih dari satu wajah' : 'Mencari wajah…', faces.length ? 'Pastikan hanya satu wajah berada di depan kamera.' : 'Hadapkan wajah ke kamera, cukup dekat, dan pastikan pencahayaan cukup.');
+    throw Error(faces.length ? 'Terdeteksi lebih dari satu wajah. Pastikan hanya satu orang.' : 'Wajah belum terdeteksi. Hadapkan wajah ke kamera dan perbaiki pencahayaan.');
+  }
+  setFeedbackState('detected', 'Wajah terdeteksi', 'Memeriksa kecocokan dengan data siswa…');
+  return Array.from(faces[0].descriptor);
+}
+$('register').addEventListener('click', async () => {
+  const name = $('studentName').value.trim();
+  if (!name) { setStatus('registerStatus', 'Masukkan nama siswa terlebih dahulu.', 'error'); return; }
+  setStatus('registerStatus', 'Sedang mengambil fitur wajah…');
+  try {
+    const d = await descriptor();
+    const s = {id:(crypto.randomUUID ? crypto.randomUUID() : String(Date.now())), name, cls:$('studentClass').value, code:$('studentCode').value.trim(), descriptor:d};
+    students.push(s);
+    if (!persist()) { students.pop(); return; }
+    $('studentName').value = ''; $('studentCode').value = '';
+    setStatus('registerStatus', 'Pendaftaran berhasil disimpan di browser/perangkat ini.', 'success');
+  } catch (e) { setStatus('registerStatus', e.message, 'error'); }
+  updateButtons();
+});
+
+// Konfirmasi visual dan bunyi hanya ketika absensi baru berhasil dicatat.
+function attendanceConfirmation(name, cls, status, time) {
+  const title = $('detectionTitle'), detail = $('detectionDetail'), snap = $('detectionSnapshot');
+  if (title) title.textContent = '✓ Absensi berhasil: ' + name;
+  if (detail) detail.textContent = cls + ' · ' + status + ' · pukul ' + time;
+  const video = $('video');
+  if (video && video.videoWidth && video.videoHeight && snap) {
+    try { const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); snap.src = canvas.toDataURL('image/jpeg', .78); snap.hidden = false; } catch (_) {}
+  }
+  // AudioContext dijalankan setelah interaksi pengguna (mengaktifkan kamera).
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) { const ctx = new AudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); osc.frequency.setValueAtTime(1175, ctx.currentTime + .12); gain.gain.setValueAtTime(.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(.18, ctx.currentTime + .02); gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .32); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + .34); osc.onended = () => ctx.close(); }
+  } catch (_) {}
+}
+function currentTabIndex() {
+  const active = document.querySelector('.tab-nav [data-tab].active');
+  return active ? Number(active.getAttribute('data-tab')) : 0;
+}
+
+// Fungsi pengenalan dipakai oleh mode otomatis dan tombol manual cadangan
+async function recognizeOnce(manual = false) {
+  // Jangan mencatat kehadiran ketika guru sedang berada di tab pendaftaran wajah.
+  if (!manual && currentTabIndex() === 3) {
+    setStatus('registerStatus', 'Mode pendaftaran aktif: pemindaian absensi dijeda agar siswa tidak langsung tercatat hadir. Kembali ke tab Absensi untuk mulai mengabsen.', '');
+    return;
+  }
+
+  if (autoBusy) return;
+  autoBusy = true;
+  try {
+    const d = await descriptor();
+    if (!students.length) {
+      setStatus('cameraStatus', 'Pemindaian otomatis aktif, tetapi belum ada wajah siswa terdaftar. Daftarkan wajah terlebih dahulu.', 'error');
+      return;
+    }
+    const matches = students.map(s => ({s, distance:faceapi.euclideanDistance(d, s.descriptor)})
+      ).sort((a,b) => a.distance - b.distance);
+    const m = matches[0];
+    if (m.distance > 0.48) {
+      stableMatchId = null; stableMatchCount = 0;
+      drawDetectionBoxes(lastDetectedFaces, '#e87979');
+      setFeedbackState('unknown', 'Wajah belum cocok', 'Wajah terlihat, tetapi belum cukup mirip dengan data tersimpan. Periksa pendaftaran, posisi, dan pencahayaan.');
+      setStatus('cameraStatus', 'Wajah terdeteksi, tetapi kecocokan belum cukup kuat (jarak ' + m.distance.toFixed(2) + '). Tidak ada absensi yang dicatat. Pastikan wajah sudah didaftarkan dengan jelas.', '');
+      return;
+    }
+    if (stableMatchId === m.s.id) stableMatchCount += 1;
+    else { stableMatchId = m.s.id; stableMatchCount = 1; }
+    // Mode otomatis menunggu kecocokan yang sama pada dua pemindaian berurutan.
+    // Tombol manual tetap menjadi jalur cadangan yang eksplisit untuk guru.
+    if (!manual && stableMatchCount < 2) {
+      drawDetectionBoxes(lastDetectedFaces, '#e87979');
+      setFeedbackState('detected', 'Memastikan identitas…', 'Wajah mirip dengan ' + m.s.name + '. Menunggu satu pemindaian cocok lagi sebelum mencatat kehadiran.');
+      setStatus('cameraStatus', 'Kecocokan awal: ' + m.s.name + '. Memastikan identitas pada pemindaian berikutnya; belum ada absensi yang dicatat.', '');
+      return;
+    }
+    drawDetectionBoxes(lastDetectedFaces, '#20c878');
+    setFeedbackState('matched', 'Wajah cocok: ' + m.s.name, 'Kecocokan terverifikasi. Memeriksa kelas sesi dan status absensi…');
+    if (!$('sessionClass').value) {
+      setStatus('cameraStatus', 'Wajah cocok dengan ' + m.s.name + ' (' + m.s.cls + '), tetapi kelas sesi belum dipilih. Pilih kelas sesi yang sesuai.', 'error');
+      return;
+    }
+    if (m.s.cls !== $('sessionClass').value) {
+      setStatus('cameraStatus', 'Wajah cocok dengan ' + m.s.name + ' kelas ' + m.s.cls + ', tetapi kelas sesi yang dipilih adalah ' + $('sessionClass').value + '. Pilih kelas yang benar.', 'error');
+      return;
+    }
+    if (attendance[m.s.id]) {
+      setStatus('cameraStatus', m.s.name + ' sudah tercatat hadir pada sesi ini. Pemindaian otomatis tetap aktif.', 'success');
+      return;
+    }
+    const detectedAt = new Date();
+    const chosenSubject = $('subject').value.trim();
+    const chosenSchedule = scheduleFor(m.s.cls, chosenSubject);
+    attendance[m.s.id] = {
+      time:detectedAt.toLocaleTimeString('id-ID', {hour:'2-digit', minute:'2-digit'}),
+      date:detectedAt.toLocaleDateString('sv-SE'),
+      subject:chosenSubject,
+      status:statusFor(m.s.cls, detectedAt, chosenSubject),
+      scheduledStart:chosenSchedule.start || '07:00',
+      graceMinutes:Number(chosenSchedule.grace ?? 10)
+    };
+    saveAttendanceSession();
+    render();
+    attendanceConfirmation(m.s.name, m.s.cls, attendance[m.s.id].status, attendance[m.s.id].time);
+    setFeedbackState('matched', '✓ OK — Absensi berhasil', m.s.name + ' · ' + m.s.cls + ' · ' + attendance[m.s.id].status + ' · ' + attendance[m.s.id].time);
+    setStatus('cameraStatus', '✓ OK — ' + m.s.name + ' (' + m.s.cls + ') — ' + attendance[m.s.id].status + ' pukul ' + attendance[m.s.id].time + '. Foto cuplikan dan bunyi konfirmasi ditampilkan. Guru tetap perlu memverifikasi identitas.', 'success');
+  } catch (e) {
+    if (e.message && e.message.includes('Wajah belum terdeteksi')) { setFeedbackState('', 'Mencari wajah…', 'Arahkan wajah ke kamera dan pastikan pencahayaan cukup.'); drawDetectionBoxes([]); }
+    setStatus('cameraStatus', 'Pemindaian otomatis: ' + e.message, 'error');
+  } finally {
+    autoBusy = false;
+  }
+}
+function startAutoRecognition() {
+  if (autoTimer) clearInterval(autoTimer);
+  stableMatchId = null; stableMatchCount = 0;
+  setFeedbackState('', 'Mencari wajah…', 'Kotak merah menandai wajah yang sedang diperiksa atau belum terkonfirmasi; hijau berarti identitas cocok.');
+  setStatus('cameraStatus', 'Pemindaian otomatis dimulai. Deteksi lebih teliti setiap sekitar 1,8 detik…', 'success');
+  // Gunakan timeout berulang agar satu pemindaian selesai sebelum pemindaian berikutnya.
+  const scan = async () => {
+    if (!stream) { autoTimer = null; return; }
+    if (modelReady && !autoBusy && currentTabIndex() !== 3) await recognizeOnce(false);
+    if (stream) autoTimer = setTimeout(scan, 1800);
+  };
+  autoTimer = setTimeout(scan, 500);
+}
+$('recognize').addEventListener('click', () => recognizeOnce(true));
+$('resetAttendance').addEventListener('click', () => {
+  if (confirm('Reset status hadir untuk kelas, mata pelajaran, dan tanggal ini?')) { attendance = {}; saveAttendanceSession(); render(); }
+});
+$('exportCsv').addEventListener('click', () => {
+  const rows = [['Nama','Kode','Kelas','Tanggal','Waktu terdeteksi','Mata pelajaran','Status','Jam masuk terjadwal','Toleransi (menit)'],
+    ...students.map(s => [s.name,s.code,s.cls,attendance[s.id]?.date||'',attendance[s.id]?.time||'',attendance[s.id]?.subject||$('subject').value,attendance[s.id]?.status||'Belum hadir',attendance[s.id]?.scheduledStart||scheduleFor(s.cls).start,attendance[s.id]?.graceMinutes??scheduleFor(s.cls).grace])];
+  const csv = rows.map(row => row.map(v => '"' + String(v ?? '').replace(/"/g,'""') + '"').join(',')).join('\r\n');
+  const url = URL.createObjectURL(new Blob(['\ufeff' + csv], {type:'text/csv;charset=utf-8'}));
+  const a = document.createElement('a'); a.href = url; a.download = 'rekap-absensi-wajah.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+});
+window.addEventListener('beforeunload', () => { if (autoTimer) clearTimeout(autoTimer); if (stream) stream.getTracks().forEach(t => t.stop()); });
+refreshClassSelects();
+renderClasses();
+loadAttendanceSession();
+renderSchedules();
+loadScheduleEditor();
+loadModels();
+})();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const nav = document.querySelector('.tab-nav');
+  const panels = Array.from(document.querySelectorAll('main.wrap .grid > section.panel'));
+  if (!nav || !panels.length) return;
+  const buttons = Array.from(nav.querySelectorAll('[data-tab]'));
+
+  function showTab(index, scroll) {
+    if (!Number.isInteger(index) || index < 0 || index >= panels.length) index = 0;
+    panels.forEach(function(panel, i) {
+      const active = i === index;
+      panel.classList.toggle('tab-hidden', !active);
+      panel.classList.toggle('tab-active', active);
+      panel.setAttribute('aria-hidden', active ? 'false' : 'true');
+    });
+    buttons.forEach(function(button, i) {
+      const active = i === index;
+      button.classList.toggle('active', active);
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
+    });
+    if (scroll) window.scrollTo({top: 0, behavior: 'auto'});
+  }
+
+  buttons.forEach(function(button) {
+    button.addEventListener('click', function() {
+      showTab(Number(button.getAttribute('data-tab')), true);
+    });
+  });
+  const goToCamera = document.getElementById('goToCamera');
+  if (goToCamera) goToCamera.addEventListener('click', function() {
+    const cameraTab = buttons.find(function(button){ return Number(button.getAttribute('data-tab')) === 0; });
+    if (cameraTab) cameraTab.click();
+  });
+
+  // Default to Absensi on every page load; hide all other panels immediately.
+  showTab(0, false);
+});
+</script>
+
+</body>
+</html>
