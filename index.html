@@ -30,35 +30,10 @@ button:disabled{opacity:.48;cursor:not-allowed}
 td,th{text-align:left;padding:10px;border-bottom:1px solid #eaf2f8;vertical-align:top}
 .notice{border-left:4px solid #e0a329;padding:10px 13px;background:#fff8e8;border-radius:6px}
 @media(max-width:720px){.wrap{padding:12px}.grid{grid-template-columns:1fr}.panel{padding:14px}}
-
-/* Tampilan ringkas: navigasi tab agar tidak perlu menggulir seluruh halaman */
-.tab-nav{display:flex;gap:8px;overflow-x:auto;padding:8px 2px 12px;margin:0 0 10px;position:sticky;top:0;z-index:20;background:#eef8ff;scrollbar-width:thin}
-.tab-nav button{flex:0 0 auto;border:1px solid #d7e7f5;border-radius:12px;background:#fff;color:#17365d;padding:10px 13px;font-weight:700;font-size:13px}
-.tab-nav button.active{background:#1675bb;color:#fff;border-color:#1675bb}
-.panel.tab-hidden{display:none!important}
-.wrap{max-width:1000px}
-@media(min-width:760px){.wrap{padding:16px}.tab-nav{flex-wrap:wrap;position:sticky}.panel{min-width:0}}
-@media(max-width:759px){.wrap{padding:10px}.tab-nav{margin-left:-2px;margin-right:-2px}.tab-nav button{padding:10px 12px}}
-
-
-/* Ikon garis modern dan minimalis */
-.tab-nav button{display:inline-flex;align-items:center;justify-content:center;gap:7px;letter-spacing:.01em}
-.nav-icon{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.tab-nav button.active .nav-icon{stroke-width:2}
-\n</style>
+</style>
 </head>
 <body>
 <main class="wrap">
-
-<nav class="tab-nav" aria-label="Navigasi fitur absensi">
-  <button type="button" class="active" data-tab="0"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="6" width="18" height="14" rx="3"/><circle cx="12" cy="13" r="4"/><path d="M8 6l1.5-2h5L16 6"/></svg><span>Absensi</span></button>
-  <button type="button" data-tab="1"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Jadwal</span></button>
-  <button type="button" data-tab="2"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg><span>Kelas</span></button>
-  <button type="button" data-tab="3"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.7-4 3.5-6 8-6s7.3 2 8 6"/></svg><span>Daftar wajah</span></button>
-  <button type="button" data-tab="4"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h8l4 4v14H7z"/><path d="M15 3v5h4M10 12h6M10 16h6"/></svg><span>Rekap</span></button>
-  <button type="button" data-tab="5"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg><span>Panduan</span></button>
-</nav>
-
 <a class="back" href="./">← Dashboard utama</a>
 <h1>Absen Wajah Cerdas</h1>
 <p class="muted">Pendaftaran wajah satu kali · pemindaian otomatis saat kamera aktif</p>
@@ -492,27 +467,5 @@ loadScheduleEditor();
 loadModels();
 })();
 </script>
-
-<script>
-(function(){
-  const panels = Array.from(document.querySelectorAll('main.wrap section.panel'));
-  const buttons = Array.from(document.querySelectorAll('.tab-nav [data-tab]'));
-  function showTab(index){
-    panels.forEach((panel, i) => {
-      panel.classList.toggle('tab-hidden', i !== index);
-      panel.setAttribute('aria-hidden', i !== index ? 'true' : 'false');
-    });
-    buttons.forEach((button, i) => {
-      const active = i === index;
-      button.classList.toggle('active', active);
-      button.setAttribute('aria-current', active ? 'page' : 'false');
-    });
-    window.scrollTo({top:0, behavior:'smooth'});
-  }
-  buttons.forEach(button => button.addEventListener('click', () => showTab(Number(button.dataset.tab))));
-  if (panels.length) showTab(0);
-})();
-</script>
-
 </body>
 </html>
