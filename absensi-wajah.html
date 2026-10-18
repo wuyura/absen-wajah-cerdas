@@ -416,7 +416,39 @@ async function loadModels() {
   }
   updateButtons();
 }
+let confirmationAudioContext = null;
+function prepareConfirmationAudio() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!confirmationAudioContext || confirmationAudioContext.state === 'closed') confirmationAudioContext = new AudioCtx();
+    if (confirmationAudioContext.state === 'suspended') confirmationAudioContext.resume().catch(() => {});
+  } catch (_) {}
+}
+function playAttendanceTone() {
+  try {
+    prepareConfirmationAudio();
+    const ctx = confirmationAudioContext;
+    if (!ctx || ctx.state !== 'running') return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(880, now);
+    osc.frequency.setValueAtTime(1175, now + 0.13);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.2, now + 0.025);
+    gain.gain.setValueAtTime(0.2, now + 0.18);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.42);
+    osc.connect(gain); gain.connect(ctx.destination);
+    osc.start(now); osc.stop(now + 0.44);
+    osc.onended = () => { try { osc.disconnect(); gain.disconnect(); } catch (_) {} };
+  } catch (_) {}
+}
+
 $('startCamera').addEventListener('click', async () => {
+  // Unlock audio during the user's tap; mobile browsers often block later automatic audio.
+  prepareConfirmationAudio();
   if (!navigator.mediaDevices?.getUserMedia) {
     setStatus('cameraStatus', 'Akses kamera tidak tersedia. Buka melalui HTTPS di browser yang mendukung kamera.', 'error');
     return;
@@ -522,11 +554,8 @@ function attendanceConfirmation(name, cls, status, time) {
   if (video && video.videoWidth && video.videoHeight && snap) {
     try { const canvas = document.createElement('canvas'); canvas.width = video.videoWidth; canvas.height = video.videoHeight; canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height); snap.src = canvas.toDataURL('image/jpeg', .78); snap.hidden = false; } catch (_) {}
   }
-  // AudioContext dijalankan setelah interaksi pengguna (mengaktifkan kamera).
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) { const ctx = new AudioCtx(); const osc = ctx.createOscillator(); const gain = ctx.createGain(); osc.type = 'sine'; osc.frequency.setValueAtTime(880, ctx.currentTime); osc.frequency.setValueAtTime(1175, ctx.currentTime + .12); gain.gain.setValueAtTime(.0001, ctx.currentTime); gain.gain.exponentialRampToValueAtTime(.18, ctx.currentTime + .02); gain.gain.exponentialRampToValueAtTime(.0001, ctx.currentTime + .32); osc.connect(gain); gain.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime + .34); osc.onended = () => ctx.close(); }
-  } catch (_) {}
+  // Gunakan AudioContext yang sudah disiapkan saat tombol kamera ditekan agar bunyi tidak diblokir browser.
+  playAttendanceTone();
 }
 function currentTabIndex() {
   const active = document.querySelector('.tab-nav [data-tab].active');
