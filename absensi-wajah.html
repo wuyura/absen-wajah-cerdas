@@ -16,6 +16,16 @@ h1{font-size:clamp(1.8rem,4vw,2.5rem)}
 .status{padding:11px 13px;border-radius:10px;background:#eef8ff;margin:12px 0;overflow-wrap:anywhere}
 .success{background:#e0f8eb;color:#087749}.error{background:#fff0f1;color:#a61e38}
 .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}
+.attendance-live-panel{margin:16px 0;min-width:0}
+.attendance-live-panel h2{margin-top:0}
+.live-count{display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap}
+.live-count strong{font-size:1.15rem}
+.live-table-wrap{max-height:430px;overflow:auto}
+.live-table-wrap thead th{position:sticky;top:0;background:#f4f9fd;z-index:1}
+.status-pill{display:inline-block;padding:4px 8px;border-radius:999px;font-size:.78rem;font-weight:750;white-space:nowrap;background:#edf2f7;color:#536579}
+.status-pill.present{background:#dcf8e8;color:#087749}
+.status-pill.late{background:#fff0d6;color:#925400}
+@media(max-width:720px){.live-table-wrap{max-height:320px}}
 .panel{background:#fff;border:1px solid #d9eaf5;border-radius:18px;padding:18px;margin:16px 0;min-width:0}
 .camera{position:relative;background:#10284d;border-radius:13px;aspect-ratio:4/3;display:grid;place-items:center;color:white;overflow:hidden}
 .camera video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:none}
@@ -97,6 +107,12 @@ main.wrap section.panel{display:none!important} main.wrap section.panel.tab-acti
 <div class="actions"><button id="recognize" class="good" type="button" disabled>Pindai manual (cadangan)</button></div>
 <div id="cameraStatus" class="status" role="status" aria-live="polite">Aktifkan kamera untuk memulai pemindaian otomatis.</div>
 <div id="detectionFeedback" class="detection-feedback" aria-live="polite"><span class="detection-mark">◎</span><div><strong id="detectionTitle">Menunggu wajah</strong><div id="detectionDetail">Saat wajah dikenali dan absensi berhasil dicatat, foto cuplikan dan bunyi konfirmasi akan muncul.</div></div><img id="detectionSnapshot" alt="Cuplikan saat absensi berhasil" hidden></div>
+</section>
+<section class="panel attendance-live-panel">
+<h2>Daftar Kehadiran</h2>
+<div class="live-count"><span class="muted" id="liveSessionLabel">Pilih kelas sesi untuk melihat daftar siswa.</span><strong><span id="livePresentCount">0</span> / <span id="liveTotalCount">0</span> hadir</strong></div>
+<div class="status" id="liveAttendanceStatus" role="status" aria-live="polite">Saat wajah dikenali, nama dan waktu kehadiran akan muncul otomatis di sini.</div>
+<div class="scroll live-table-wrap"><table><thead><tr><th>No.</th><th>Nama siswa</th><th>Kelas</th><th>Waktu</th><th>Status</th></tr></thead><tbody id="liveAttendanceRows"><tr><td colspan="5">Pilih kelas sesi terlebih dahulu.</td></tr></tbody></table></div>
 </section>
 <section class="panel">
 <h2>Pengaturan Jam Masuk</h2>
@@ -560,7 +576,7 @@ function render() {
   if (!students.length) {
     const tr = document.createElement('tr'), td = document.createElement('td');
     td.colSpan = 4; td.textContent = 'Belum ada siswa terdaftar.';
-    tr.appendChild(td); body.appendChild(tr); return;
+    tr.appendChild(td); body.appendChild(tr); renderLiveAttendance(); return;
   }
   students.forEach(s => {
     const tr = document.createElement('tr');
@@ -576,6 +592,41 @@ function render() {
       }
     });
     td.appendChild(b); tr.appendChild(td); body.appendChild(tr);
+  });
+  renderLiveAttendance();
+}
+
+function renderLiveAttendance() {
+  const body = $('liveAttendanceRows');
+  if (!body) return;
+  const cls = $('sessionClass')?.value || '';
+  const subject = ($('subject')?.value || '').trim();
+  const roster = students.filter(s => !cls || s.cls === cls).slice().sort((a,b) => {
+    const aa = attendance[a.id] ? 0 : 1, bb = attendance[b.id] ? 0 : 1;
+    return aa - bb || (a.name || '').localeCompare(b.name || '', 'id');
+  });
+  const present = roster.filter(s => !!attendance[s.id]).length;
+  $('livePresentCount').textContent = present;
+  $('liveTotalCount').textContent = roster.length;
+  $('liveSessionLabel').textContent = (cls || 'Belum memilih kelas') + (subject ? ' · ' + subject : '');
+  $('liveAttendanceStatus').textContent = present
+    ? present + ' siswa sudah tercatat pada sesi ini. Daftar diperbarui otomatis setelah pengenalan wajah.'
+    : 'Belum ada siswa tercatat hadir. Daftar akan diperbarui otomatis setelah wajah dikenali.';
+  body.replaceChildren();
+  if (!cls) {
+    const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=5; td.textContent='Pilih kelas sesi terlebih dahulu.'; tr.appendChild(td); body.appendChild(tr); return;
+  }
+  if (!roster.length) {
+    const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=5; td.textContent='Belum ada siswa pada kelas ini. Tambahkan atau impor daftar siswa terlebih dahulu.'; tr.appendChild(td); body.appendChild(tr); return;
+  }
+  roster.forEach((student, index) => {
+    const record = attendance[student.id];
+    const tr=document.createElement('tr');
+    [String(index+1), student.name || 'Tanpa nama', student.cls || '—', record?.time || '—'].forEach(value=>{const td=document.createElement('td');td.textContent=value;tr.appendChild(td);});
+    const statusTd=document.createElement('td'), pill=document.createElement('span');
+    pill.className='status-pill' + (record ? (String(record.status).toLocaleLowerCase('id-ID').includes('terlambat') ? ' late' : ' present') : '');
+    pill.textContent=record ? record.status : 'Belum hadir'; statusTd.appendChild(pill); tr.appendChild(statusTd);
+    body.appendChild(tr);
   });
 }
 
@@ -1004,7 +1055,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
   const groups = [
-    [panelByHeading('Kamera absensi')],
+    [panelByHeading('Kamera absensi'), panelByHeading('Daftar kehadiran')],
     [panelByHeading('Kelola daftar kelas')],
     [panelByHeading('Daftarkan wajah')],
     [panelByHeading('Pengaturan jam masuk')],
