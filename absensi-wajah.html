@@ -96,6 +96,13 @@ main.wrap > .grid > section.panel:not(.attendance-live-panel) select{max-width:1
 .help-dialog-head h2{margin:0}
 .help-dialog-head button{border:1px solid #d4e0eb;border-radius:10px;padding:9px 14px;background:#f1f7fb;color:#17345b}
 
+
+.student-manager-toolbar,.student-form-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.student-edit-box{margin-top:18px;padding:16px;border:1px solid #d9eaf5;border-radius:14px;background:#f8fcff}
+.student-edit-box h3{margin-top:0}
+.student-manager-toolbar label,.student-form-grid label{margin-top:4px}
+#manageStudentRows button{white-space:nowrap;padding:7px 10px;min-height:34px;font-size:.82rem}
+@media(max-width:720px){.student-manager-toolbar,.student-form-grid{grid-template-columns:1fr}.student-manager-toolbar{gap:4px}}
 </style>
 </head>
 <body>
@@ -161,7 +168,29 @@ main.wrap > .grid > section.panel:not(.attendance-live-panel) select{max-width:1
 <div id="importStatus" class="status" role="status" aria-live="polite">Kolom yang didukung: Nama, L/P, Kelas, NISN. Kolom Kelas boleh dikosongkan jika kelas default dipilih.</div>
 </div>
 <div id="classStatus" class="status" role="status" aria-live="polite">Daftar kelas tersimpan di browser/perangkat ini.</div>
-<div class="scroll"><table><thead><tr><th>Nama kelas</th><th>Aksi</th></tr></thead><tbody id="classRows"></tbody></table></div>
+<div class="scroll"><table><thead><tr><th>Nama kelas</th><th>Jumlah siswa</th><th>Aksi</th></tr></thead><tbody id="classRows"></tbody></table></div>
+</section>
+<section class="panel">
+<h2>Kelola Data Siswa</h2>
+<p class="muted">Lihat semua siswa atau pilih kelas tertentu. Anda dapat menambah, mengedit, memindahkan kelas, dan menghapus data siswa. Perubahan saat ini disimpan di browser/perangkat ini; koneksi Google Sheets kita tambahkan setelah bagian ini beres.</p>
+<div class="student-manager-toolbar">
+  <div><label for="manageStudentClass">Pilih kelas</label><select id="manageStudentClass"><option value="">Semua kelas</option></select></div>
+  <div><label for="manageStudentSearch">Cari nama / NISN</label><input id="manageStudentSearch" placeholder="Ketik nama atau NISN"></div>
+</div>
+<div class="status" id="studentManagerSummary" role="status">Belum ada data siswa.</div>
+<div class="scroll"><table><thead><tr><th>No.</th><th>Nama siswa</th><th>NISN</th><th>Kelas</th><th>Jenis kelamin</th><th>Status wajah</th><th>Aksi</th></tr></thead><tbody id="manageStudentRows"><tr><td colspan="7">Belum ada siswa.</td></tr></tbody></table></div>
+<div class="student-edit-box" id="student-edit-box">
+  <h3 id="studentFormTitle">Tambah siswa</h3>
+  <input id="manageStudentId" type="hidden">
+  <div class="student-form-grid">
+    <div><label for="manageStudentName">Nama lengkap siswa</label><input id="manageStudentName" maxlength="120" placeholder="Nama lengkap"></div>
+    <div><label for="manageStudentCode">NISN / nomor induk (opsional)</label><input id="manageStudentCode" maxlength="40" placeholder="NISN atau nomor induk"></div>
+    <div><label for="manageStudentFormClass">Kelas</label><select id="manageStudentFormClass"><option value="">Pilih kelas</option></select></div>
+    <div><label for="manageStudentGender">Jenis kelamin</label><select id="manageStudentGender"><option value="">Belum dipilih</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></div>
+  </div>
+  <div class="actions"><button id="saveManagedStudent" class="primary" type="button">Tambah siswa</button><button id="cancelManagedStudent" type="button">Batal / kosongkan</button></div>
+  <div id="studentManagerStatus" class="status" role="status">Data siswa tersimpan di browser/perangkat ini.</div>
+</div>
 </section>
 <section class="panel">
 <h2>Daftarkan Wajah</h2>
@@ -453,8 +482,8 @@ $('saveSchedule').addEventListener('click', () => {
 function renderClasses() {
   const body=$('classRows'); body.replaceChildren();
   classNames.forEach(cls=>{
-    const tr=document.createElement('tr'), name=document.createElement('td'), actions=document.createElement('td');
-    name.textContent=cls;
+    const tr=document.createElement('tr'), name=document.createElement('td'), count=document.createElement('td'), actions=document.createElement('td');
+    name.textContent=cls; count.textContent=students.filter(s=>s.cls===cls).length;
     const edit=document.createElement('button'); edit.type='button'; edit.textContent='Ubah nama';
     edit.addEventListener('click',()=>{
       const next=prompt('Nama kelas baru:',cls);
@@ -469,7 +498,7 @@ function renderClasses() {
       });
       try {persistClasses();localStorage.setItem(STORAGE_KEY,JSON.stringify({students}));localStorage.setItem(SCHEDULE_KEY,JSON.stringify(schedules));}
       catch(e){setStatus('classStatus','Perubahan tidak dapat disimpan: '+e.message,'error');return;}
-      refreshClassSelects(val);renderClasses();renderSchedules();render();
+      refreshClassSelects(val);refreshStudentManagerSelects(val);renderClasses();renderSchedules();renderStudentManager();render();
       setStatus('classStatus','Nama kelas berhasil diubah.','success');
     });
     const del=document.createElement('button'); del.type='button'; del.textContent='Hapus kelas';
@@ -480,19 +509,76 @@ function renderClasses() {
       Object.keys(schedules).forEach(k=>{if(k.startsWith(cls+'::'))delete schedules[k];});
       try{persistClasses();localStorage.setItem(SCHEDULE_KEY,JSON.stringify(schedules));}
       catch(e){setStatus('classStatus','Gagal menyimpan perubahan: '+e.message,'error');return;}
-      refreshClassSelects();renderClasses();renderSchedules();loadScheduleEditor();
+      refreshClassSelects();refreshStudentManagerSelects();renderClasses();renderSchedules();renderStudentManager();loadScheduleEditor();
       setStatus('classStatus','Kelas berhasil dihapus.','success');
     });
-    actions.append(edit,del);tr.append(name,actions);body.appendChild(tr);
+    actions.append(edit,del);tr.append(name,count,actions);body.appendChild(tr);
   });
 }
+function refreshStudentManagerSelects(preferred='') {
+  const filter=$('manageStudentClass');
+  const old=preferred || (filter ? filter.value : '');
+  if(filter){filter.replaceChildren(new Option('Semua kelas',''));classNames.forEach(c=>filter.add(new Option(c,c)));if(classNames.includes(old))filter.value=old;}
+  const formClass=$('manageStudentFormClass');
+  if(formClass){const previous=formClass.value;formClass.replaceChildren(new Option('Pilih kelas',''));classNames.forEach(c=>formClass.add(new Option(c,c)));if(classNames.includes(preferred))formClass.value=preferred;else if(classNames.includes(previous))formClass.value=previous;}
+}
+function resetManagedStudentForm(){
+  $('manageStudentId').value='';$('manageStudentName').value='';$('manageStudentCode').value='';$('manageStudentGender').value='';
+  $('studentFormTitle').textContent='Tambah siswa';$('saveManagedStudent').textContent='Tambah siswa';
+}
+function editManagedStudent(id){
+  const s=students.find(x=>x.id===id);if(!s)return;
+  $('manageStudentId').value=s.id;$('manageStudentName').value=s.name||'';$('manageStudentCode').value=s.code||'';$('manageStudentGender').value=s.gender||'';
+  refreshStudentManagerSelects(s.cls);$('manageStudentFormClass').value=s.cls||'';
+  $('studentFormTitle').textContent='Edit data siswa';$('saveManagedStudent').textContent='Simpan perubahan';
+  $('studentManagerStatus').textContent='Mengedit '+(s.name||'siswa')+'.';$('student-edit-box')?.scrollIntoView({behavior:'smooth',block:'start'});
+}
+function renderStudentManager(){
+  const body=$('manageStudentRows');if(!body)return;
+  const cls=$('manageStudentClass').value, q=$('manageStudentSearch').value.trim().toLocaleLowerCase('id-ID');
+  const rows=students.filter(s=>(!cls||s.cls===cls)&&(!q||(s.name||'').toLocaleLowerCase('id-ID').includes(q)||(s.code||'').toLocaleLowerCase('id-ID').includes(q))).sort((a,b)=>(a.cls||'').localeCompare(b.cls||'','id')||(a.name||'').localeCompare(b.name||'','id'));
+  $('studentManagerSummary').textContent=rows.length+' siswa ditampilkan'+(cls?' di kelas '+cls:' dari '+students.length+' siswa pada semua kelas')+'.';
+  body.replaceChildren();
+  if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='Tidak ada siswa yang cocok. Tambahkan siswa melalui formulir di bawah atau impor file CSV.';tr.appendChild(td);body.appendChild(tr);return;}
+  rows.forEach((s,i)=>{
+    const tr=document.createElement('tr');
+    [String(i+1),s.name||'',s.code||'—',s.cls||'—',s.gender==='L'?'Laki-laki':s.gender==='P'?'Perempuan':'—',Array.isArray(s.descriptor)&&s.descriptor.length?'Wajah terdaftar':'Belum daftar wajah'].forEach(v=>{const td=document.createElement('td');td.textContent=v;tr.appendChild(td)});
+    const td=document.createElement('td'),edit=document.createElement('button'),del=document.createElement('button');
+    edit.type='button';edit.textContent='Edit';edit.addEventListener('click',()=>editManagedStudent(s.id));
+    del.type='button';del.textContent='Hapus';del.addEventListener('click',()=>{
+      if(!confirm('Hapus data siswa '+s.name+'? Template wajahnya juga akan dihapus dari perangkat ini. Riwayat absensi lama mungkin tetap tersimpan tanpa data profil siswa.'))return;
+      students=students.filter(x=>x.id!==s.id);
+      Object.values(attendanceSessions).forEach(session=>{if(session&&typeof session==='object')delete session[s.id];});
+      try{localStorage.setItem(ATTENDANCE_KEY,JSON.stringify(attendanceSessions));persistClasses();localStorage.setItem(STORAGE_KEY,JSON.stringify({students}));
+        refreshRegistrationStudents();fillRegistrationStudent();renderClasses();renderSchedules();renderStudentManager();renderLiveAttendance();setStatus('studentManagerStatus','Data siswa dihapus dari perangkat ini.','success');
+      }catch(e){setStatus('studentManagerStatus','Gagal menyimpan perubahan: '+e.message,'error');}
+    });td.append(edit,del);tr.appendChild(td);body.appendChild(tr);
+  });
+}
+$('manageStudentClass').addEventListener('change',renderStudentManager);
+$('manageStudentSearch').addEventListener('input',renderStudentManager);
+$('saveManagedStudent').addEventListener('click',()=>{
+  const id=$('manageStudentId').value,name=$('manageStudentName').value.trim(),code=$('manageStudentCode').value.trim(),cls=$('manageStudentFormClass').value,gender=$('manageStudentGender').value;
+  if(!name){setStatus('studentManagerStatus','Nama siswa wajib diisi.','error');return;}
+  if(!cls){setStatus('studentManagerStatus','Pilih kelas siswa terlebih dahulu.','error');return;}
+  if(code&&students.some(s=>s.id!==id&&s.code&&s.code.trim().toLocaleLowerCase('id-ID')===code.toLocaleLowerCase('id-ID'))){setStatus('studentManagerStatus','NISN/nomor induk ini sudah digunakan siswa lain.','error');return;}
+  const before=students.map(s=>({...s}));
+  if(id){const s=students.find(x=>x.id===id);if(!s){setStatus('studentManagerStatus','Data siswa tidak ditemukan. Muat ulang daftar lalu coba lagi.','error');return;}s.name=name;s.code=code;s.cls=cls;s.gender=gender;}
+  else {students.push({id:(crypto.randomUUID?crypto.randomUUID():String(Date.now())+'-'+Math.random().toString(36).slice(2)),name,code,cls,gender,descriptor:null});}
+  try{persistClasses();localStorage.setItem(STORAGE_KEY,JSON.stringify({students}));}
+  catch(e){students=before;setStatus('studentManagerStatus','Perubahan gagal disimpan: '+e.message,'error');return;}
+  refreshClassSelects(cls);refreshStudentManagerSelects(cls);refreshRegistrationStudents();renderClasses();renderSchedules();renderStudentManager();render();resetManagedStudentForm();
+  setStatus('studentManagerStatus',id?'Data siswa berhasil diperbarui.':'Siswa berhasil ditambahkan. Daftarkan wajahnya melalui tab Daftar Wajah.', 'success');
+});
+$('cancelManagedStudent').addEventListener('click',()=>{resetManagedStudentForm();setStatus('studentManagerStatus','Formulir dikosongkan.','');});
+
 $('addClass').addEventListener('click',()=>{
   const cls=$('newClassName').value.trim();
   if(!cls){setStatus('classStatus','Masukkan nama kelas.','error');return;}
   if(classNames.some(x=>x.toLocaleLowerCase('id-ID')===cls.toLocaleLowerCase('id-ID'))){setStatus('classStatus','Nama kelas sudah ada.','error');return;}
   classNames.push(cls);
   try{persistClasses();}catch(e){classNames.pop();setStatus('classStatus','Kelas gagal disimpan: '+e.message,'error');return;}
-  $('newClassName').value='';refreshClassSelects(cls);fillImportClassSelect(cls);refreshRegistrationStudents();renderClasses();renderSchedules();loadScheduleEditor();
+  $('newClassName').value='';refreshClassSelects(cls);refreshStudentManagerSelects(cls);fillImportClassSelect(cls);refreshRegistrationStudents();renderClasses();renderSchedules();renderStudentManager();loadScheduleEditor();
   setStatus('classStatus','Kelas '+cls+' berhasil ditambahkan dan siap dipilih.','success');
 });
 // Impor daftar siswa satu kelas dari CSV. Siswa impor menjadi daftar nama terlebih dahulu;
@@ -558,7 +644,7 @@ $('importRoster').addEventListener('click',async()=>{
     });
     try {persistClasses();localStorage.setItem(STORAGE_KEY,JSON.stringify({students}));}
     catch(e){students=beforeStudents;classNames=beforeClasses;throw Error('Penyimpanan gagal; perubahan dibatalkan: '+e.message);}
-    refreshClassSelects(defaultClass || parsed[0].cls);fillImportClassSelect(defaultClass || parsed[0].cls);refreshRegistrationStudents();renderClasses();renderSchedules();render();
+    refreshClassSelects(defaultClass || parsed[0].cls);refreshStudentManagerSelects(defaultClass || parsed[0].cls);fillImportClassSelect(defaultClass || parsed[0].cls);refreshRegistrationStudents();renderClasses();renderSchedules();renderStudentManager();render();
     setStatus('importStatus','Impor selesai: '+added+' siswa baru, '+updated+' data diperbarui. Daftar tersimpan di browser ini. Daftarkan wajah tiap siswa sebelum absensi otomatis dapat mengenalinya.','success');
     $('rosterFile').value='';
   } catch(e){setStatus('importStatus',e.message||'File tidak dapat diimpor.','error');}
@@ -588,6 +674,7 @@ $('sessionClass').addEventListener('change', loadAttendanceSession);
 $('subject').addEventListener('change', loadAttendanceSession);
 function render() {
   $('studentCount').textContent = students.length;
+  if ($('manageStudentRows')) renderStudentManager();
   $('presentCount').textContent = Object.keys(attendance).length;
   const body = $('studentRows');
   body.replaceChildren();
@@ -1044,8 +1131,10 @@ $('exportCsv').addEventListener('click', () => {
 });
 window.addEventListener('beforeunload', () => { if (autoTimer) clearTimeout(autoTimer); if (stream) stream.getTracks().forEach(t => t.stop()); });
 refreshClassSelects();
+refreshStudentManagerSelects();
 fillImportClassSelect();
 renderClasses();
+renderStudentManager();
 loadAttendanceSession();
 renderSchedules();
 loadScheduleEditor();
@@ -1074,7 +1163,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
   const groups = [
     [panelByHeading('Kamera absensi'), panelByHeading('Daftar kehadiran')],
-    [panelByHeading('Kelola daftar kelas')],
+    [panelByHeading('Kelola daftar kelas'), panelByHeading('Kelola data siswa')],
     [panelByHeading('Daftarkan wajah')],
     [panelByHeading('Pengaturan jam masuk')],
     [panelByHeading('Rekap Absensi')]
