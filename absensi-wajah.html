@@ -56,6 +56,24 @@ main.wrap section.panel{display:none!important} main.wrap section.panel.tab-acti
 @media(max-width:759px){.wrap{padding:10px}.tab-nav{margin-left:-2px;margin-right:-2px}.tab-nav button{padding:10px 12px}}
 
 
+/* Tata letak tab: panel selain Absensi memakai lebar layar penuh */
+main.wrap > .grid{grid-template-columns:minmax(0,1fr);align-items:start}
+main.wrap > .grid[data-active-tab="0"]{grid-template-columns:repeat(2,minmax(0,1fr))}
+main.wrap > .grid > section.panel{width:100%;max-width:none;min-width:0;margin:8px 0}
+main.wrap > .grid > section.panel.tab-active{grid-column:1 / -1}
+main.wrap > .grid[data-active-tab="0"] > section.panel.tab-active{grid-column:auto}
+/* Form dan tabel memanfaatkan ruang horizontal, bukan membentuk kolom sempit */
+main.wrap > .grid > section.panel:not(.attendance-live-panel) .scroll{max-width:100%}
+main.wrap > .grid > section.panel:not(.attendance-live-panel) table{min-width:0}
+main.wrap > .grid > section.panel:not(.attendance-live-panel) td,
+main.wrap > .grid > section.panel:not(.attendance-live-panel) th{padding:9px 10px}
+main.wrap > .grid > section.panel:not(.attendance-live-panel) input,
+main.wrap > .grid > section.panel:not(.attendance-live-panel) select{max-width:100%}
+@media(max-width:759px){
+  main.wrap > .grid[data-active-tab="0"]{grid-template-columns:minmax(0,1fr)}
+  main.wrap > .grid[data-active-tab="0"] > section.panel.tab-active{grid-column:1}
+}
+
 /* Ikon garis modern dan minimalis */
 .tab-nav button{display:inline-flex;align-items:center;justify-content:center;gap:7px;letter-spacing:.01em}
 .nav-icon{width:16px;height:16px;flex:0 0 16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -1064,6 +1082,8 @@ document.addEventListener('DOMContentLoaded', function () {
   function showTab(index, scroll) {
     if (!Number.isInteger(index) || index < 0 || index >= groups.length) return;
     const visible = groups[index].filter(Boolean);
+    const contentGrid = document.querySelector('main.wrap > .grid');
+    if (contentGrid) contentGrid.setAttribute('data-active-tab', String(index));
     allPanels.forEach(function(panel) {
       const active = visible.includes(panel);
       panel.classList.toggle('tab-hidden', !active);
