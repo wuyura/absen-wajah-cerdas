@@ -400,7 +400,8 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
 <h2>Daftar Kehadiran</h2>
 <div class="live-count"><span class="muted" id="liveSessionLabel">Pilih kelas sesi untuk melihat daftar siswa.</span><strong><span id="livePresentCount">0</span> / <span id="liveTotalCount">0</span> hadir</strong></div>
 <div class="status" id="liveAttendanceStatus" role="status" aria-live="polite">Saat wajah dikenali, nama dan waktu kehadiran akan muncul otomatis di sini.</div>
-<div class="scroll live-table-wrap"><table><thead><tr><th>No.</th><th>Nama siswa</th><th>Kelas</th><th>Waktu</th><th>Status</th></tr></thead><tbody id="liveAttendanceRows"><tr><td colspan="5">Pilih kelas sesi terlebih dahulu.</td></tr></tbody></table></div>
+<div class="actions"><button id="resetAttendanceLive" type="button">Reset Kehadiran Sesi Ini</button></div>
+<div class="scroll live-table-wrap"><table><thead><tr><th>No.</th><th>Nama siswa</th><th>Kelas</th><th>Waktu</th><th>Status</th><th>Edit status</th></tr></thead><tbody id="liveAttendanceRows"><tr><td colspan="6">Pilih kelas sesi terlebih dahulu.</td></tr></tbody></table></div>
 </section>
 <section class="panel">
 <h2>Pengaturan Jam Masuk</h2>
@@ -1047,10 +1048,10 @@ function renderLiveAttendance() {
     : 'Belum ada siswa tercatat hadir. Daftar akan diperbarui otomatis setelah wajah dikenali.';
   body.replaceChildren();
   if (!cls) {
-    const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=5; td.textContent='Pilih kelas sesi terlebih dahulu.'; tr.appendChild(td); body.appendChild(tr); return;
+    const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=6; td.textContent='Pilih kelas sesi terlebih dahulu.'; tr.appendChild(td); body.appendChild(tr); return;
   }
   if (!roster.length) {
-    const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=5; td.textContent='Belum ada siswa pada kelas ini. Tambahkan atau impor daftar siswa terlebih dahulu.'; tr.appendChild(td); body.appendChild(tr); return;
+    const tr=document.createElement('tr'), td=document.createElement('td'); td.colSpan=6; td.textContent='Belum ada siswa pada kelas ini. Tambahkan atau impor daftar siswa terlebih dahulu.'; tr.appendChild(td); body.appendChild(tr); return;
   }
   roster.forEach((student, index) => {
     const record = attendance[student.id];
@@ -1059,6 +1060,22 @@ function renderLiveAttendance() {
     const statusTd=document.createElement('td'), pill=document.createElement('span');
     pill.className='status-pill' + (record ? (String(record.status).toLocaleLowerCase('id-ID').includes('terlambat') ? ' late' : ' present') : '');
     pill.textContent=record ? record.status : 'Belum hadir'; statusTd.appendChild(pill); tr.appendChild(statusTd);
+    const editTd=document.createElement('td');
+    const editSelect=document.createElement('select'); editSelect.setAttribute('aria-label','Ubah status kehadiran '+(student.name||''));
+    [['Hadir','Hadir'],['Terlambat','Terlambat'],['Izin','Izin'],['Sakit','Sakit'],['Alpa','Alpa'],['Belum hadir','Belum hadir']].forEach(([label,value])=>{const opt=new Option(label,value);editSelect.add(opt);});
+    editSelect.value=record?.status||'Belum hadir'; editSelect.style.minWidth='112px';
+    const saveBtn=document.createElement('button'); saveBtn.type='button'; saveBtn.textContent='Simpan'; saveBtn.style.marginTop='6px';
+    saveBtn.addEventListener('click',()=>{
+      const status=editSelect.value;
+      if(status==='Belum hadir') { delete attendance[student.id]; }
+      else {
+        const now=new Date();
+        attendance[student.id]={...(attendance[student.id]||{}),date:now.toLocaleDateString('sv-SE'),time:now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',hour12:false}),subject:subject||$('subject').value||'',status,scheduledStart:scheduleFor(student.cls).start,graceMinutes:scheduleFor(student.cls).grace};
+      }
+      saveAttendanceSession(); render();
+      setStatus('liveAttendanceStatus','Status '+student.name+' diperbarui menjadi '+status+'.','success');
+    });
+    editTd.append(editSelect,saveBtn); tr.appendChild(editTd);
     body.appendChild(tr);
   });
 }
@@ -1446,6 +1463,15 @@ function startAutoRecognition() {
 $('recognize').addEventListener('click', () => recognizeOnce(true));
 $('resetAttendance').addEventListener('click', () => {
   if (confirm('Reset status hadir untuk kelas, mata pelajaran, dan tanggal ini?')) { attendance = {}; saveAttendanceSession(); render(); }
+});
+$('resetAttendanceLive').addEventListener('click', () => {
+  const cls=$('sessionClass')?.value||'';
+  const subject=($('subject')?.value||'').trim();
+  if(!cls){alert('Pilih kelas sesi terlebih dahulu agar reset tidak mengenai sesi yang salah.');return;}
+  if(confirm('Reset semua catatan kehadiran untuk kelas '+cls+', mata pelajaran '+(subject||'(kosong)')+', tanggal hari ini? Data sesi ini akan dikosongkan, tetapi data siswa dan wajah tetap aman.')){
+    attendance={}; saveAttendanceSession(); render();
+    setStatus('liveAttendanceStatus','Kehadiran sesi ini telah direset. Data siswa dan template wajah tidak dihapus.','success');
+  }
 });
 $('exportCsv').addEventListener('click', () => {
   const rows = [['Nama','Kode','Kelas','Tanggal','Waktu terdeteksi','Mata pelajaran','Status','Jam masuk terjadwal','Toleransi (menit)'],
