@@ -373,6 +373,7 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
 .attendance-edit-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:240px}
 .attendance-edit-actions button{font-size:.82rem;padding:7px 9px;min-height:34px}
 .attendance-edit-actions button[aria-label*='Terlambat']{border-color:#d99a18}
+.attendance-edit-actions button[aria-label*='Terlambat dengan Izin']{border-color:#7c83db}
 @media(max-width:700px){.attendance-edit-actions{min-width:220px}.attendance-edit-actions button{min-height:38px}}
 </style>
 </head>
@@ -538,7 +539,7 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
     <select id="recapSubject"><option value="">Semua mata pelajaran</option></select>
   </label>
   <label>Status
-    <select id="recapStatus"><option value="">Semua status</option><option value="Hadir">Hadir</option><option value="Terlambat">Terlambat</option><option value="Izin">Izin</option><option value="Sakit">Sakit</option><option value="Alpa">Alpa</option></select>
+    <select id="recapStatus"><option value="">Semua status</option><option value="Hadir">Hadir</option><option value="Terlambat">Terlambat</option><option value="Terlambat dengan Izin">Terlambat dengan Izin</option><option value="Izin">Izin</option><option value="Sakit">Sakit</option><option value="Alpa">Alpa</option></select>
   </label>
   <button id="applyRecap" type="button">Tampilkan Rekap</button>
   <button id="exportPeriodCsv" type="button">Ekspor CSV</button>
@@ -546,7 +547,7 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
 </div>
 <p id="recapSummary" class="status" role="status">Pilih periode dan filter, lalu tekan Tampilkan Rekap.</p>
 <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(125px,1fr));gap:10px;margin:12px 0">
-  <div class="status"><strong>Total Catatan</strong><div id="countAll">0</div></div><div class="status"><strong>Hadir</strong><div id="countHadir">0</div></div><div class="status"><strong>Terlambat</strong><div id="countTerlambat">0</div></div><div class="status"><strong>Izin</strong><div id="countIzin">0</div></div><div class="status"><strong>Sakit</strong><div id="countSakit">0</div></div><div class="status"><strong>Alpa</strong><div id="countAlpa">0</div></div>
+  <div class="status"><strong>Total Catatan</strong><div id="countAll">0</div></div><div class="status"><strong>Hadir</strong><div id="countHadir">0</div></div><div class="status"><strong>Terlambat</strong><div id="countTerlambat">0</div></div><div class="status"><strong>Terlambat dengan Izin</strong><div id="countTerlambatIzin">0</div></div><div class="status"><strong>Izin</strong><div id="countIzin">0</div></div><div class="status"><strong>Sakit</strong><div id="countSakit">0</div></div><div class="status"><strong>Alpa</strong><div id="countAlpa">0</div></div>
 </div>
 <p class="muted">Catatan: Alpa hanya dihitung jika status Alpa memang tersimpan. Hari tanpa catatan tidak otomatis dianggap alpa.</p>
 <div class="scroll"><table><thead id="periodHead"><tr><th>Tanggal</th><th>Nama</th><th>Kelas</th><th>Mata Pelajaran</th><th>Jam</th><th>Status</th></tr></thead><tbody id="periodRows"><tr><td colspan="7">Belum ada data rekap untuk ditampilkan.</td></tr></tbody></table></div>
@@ -1112,10 +1113,10 @@ function renderLiveAttendance() {
     pill.textContent=record ? record.status : 'Belum hadir'; statusTd.appendChild(pill); tr.appendChild(statusTd);
     const editTd=document.createElement('td'), editActions=document.createElement('div');
     editActions.className='actions attendance-edit-actions';
-    [['Hadir','Hadir'],['Terlambat','Terlambat'],['Izin','Izin'],['Sakit','Sakit'],['Alpa','Alpa']].forEach(([label,status])=>{
+    [['Hadir','Hadir'],['Terlambat','Terlambat'],['Terlambat + Izin','Terlambat dengan Izin'],['Izin','Izin'],['Sakit','Sakit'],['Alpa','Alpa']].forEach(([label,status])=>{
       const button=document.createElement('button'); button.type='button'; button.textContent=label;
       button.setAttribute('aria-label', 'Ubah kehadiran '+(student.name||'siswa')+' menjadi '+status);
-      if(record && (record.status===status || (status==='Hadir' && String(record.status).includes('Terlambat')))) button.classList.add('primary');
+      if(record && (record.status===status || (status==='Hadir' && String(record.status).includes('Hadir')))) button.classList.add('primary');
       button.addEventListener('click',()=>{
         const now=new Date();
         const schedule= scheduleFor(student.cls, subject);
@@ -1199,23 +1200,23 @@ function renderPeriodRecap() {
   if(!rows.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=7;td.textContent='Belum ada catatan absensi pada periode ini.';tr.appendChild(td);body.appendChild(tr);}
   const mode=$('recapMode')?.value||'detail';
   const head=$('periodHead');
-  const headers=mode==='student'?['Nama','Kelas','Hadir','Terlambat','Izin','Sakit','Alpa','Total']:mode==='class'?['Kelas','Jumlah Siswa Tercatat','Hadir','Terlambat','Izin','Sakit','Alpa','Total']:mode==='session'?['Tanggal','Kelas','Mata Pelajaran','Hadir','Terlambat','Izin','Sakit','Alpa','Total']:['Tanggal','Nama','Kelas','Mata Pelajaran','Jam','Status'];
+  const headers=mode==='student'?['Nama','Kelas','Hadir','Terlambat','Terlambat dengan Izin','Izin','Sakit','Alpa','Total']:mode==='class'?['Kelas','Jumlah Siswa Tercatat','Hadir','Terlambat','Terlambat dengan Izin','Izin','Sakit','Alpa','Total']:mode==='session'?['Tanggal','Kelas','Mata Pelajaran','Hadir','Terlambat','Terlambat dengan Izin','Izin','Sakit','Alpa','Total']:['Tanggal','Nama','Kelas','Mata Pelajaran','Jam','Status'];
   if(head){head.replaceChildren();const tr=document.createElement('tr');headers.forEach(h=>{const th=document.createElement('th');th.textContent=h;tr.appendChild(th)});head.appendChild(tr);}
-  const statusKey=r=>{const s=String(r.status||'').toLocaleLowerCase('id-ID');if(s.includes('terlambat'))return 'Terlambat';if(s.includes('izin'))return 'Izin';if(s.includes('sakit'))return 'Sakit';if(s.includes('alpa'))return 'Alpa';return 'Hadir';};
-  const tally=arr=>({Hadir:arr.filter(r=>statusKey(r)==='Hadir').length,Terlambat:arr.filter(r=>statusKey(r)==='Terlambat').length,Izin:arr.filter(r=>statusKey(r)==='Izin').length,Sakit:arr.filter(r=>statusKey(r)==='Sakit').length,Alpa:arr.filter(r=>statusKey(r)==='Alpa').length,Total:arr.length});
+  const statusKey=r=>{const s=String(r.status||'').toLocaleLowerCase('id-ID');if(s.includes('terlambat')&&s.includes('izin'))return 'Terlambat dengan Izin';if(s.includes('terlambat'))return 'Terlambat';if(s.includes('izin'))return 'Izin';if(s.includes('sakit'))return 'Sakit';if(s.includes('alpa'))return 'Alpa';return 'Hadir';};
+  const tally=arr=>({Hadir:arr.filter(r=>statusKey(r)==='Hadir').length,Terlambat:arr.filter(r=>statusKey(r)==='Terlambat').length,'Terlambat dengan Izin':arr.filter(r=>statusKey(r)==='Terlambat dengan Izin').length,Izin:arr.filter(r=>statusKey(r)==='Izin').length,Sakit:arr.filter(r=>statusKey(r)==='Sakit').length,Alpa:arr.filter(r=>statusKey(r)==='Alpa').length,Total:arr.length});
   let display=[];
   if(mode==='student'||mode==='class'||mode==='session'){
     const groups={}; rows.forEach(r=>{const k=mode==='student'?[r.name,r.cls].join('|'):mode==='class'?r.cls:[r.date,r.cls,r.subject].join('|');(groups[k] ||= []).push(r)});
-    Object.entries(groups).forEach(([k,arr])=>{const t=tally(arr), first=arr[0];display.push(mode==='student'?[first.name,first.cls,t.Hadir,t.Terlambat,t.Izin,t.Sakit,t.Alpa,t.Total]:mode==='class'?[first.cls,new Set(arr.map(r=>r.name)).size,t.Hadir,t.Terlambat,t.Izin,t.Sakit,t.Alpa,t.Total]:[first.date,first.cls,first.subject,t.Hadir,t.Terlambat,t.Izin,t.Sakit,t.Alpa,t.Total]);});
+    Object.entries(groups).forEach(([k,arr])=>{const t=tally(arr), first=arr[0];display.push(mode==='student'?[first.name,first.cls,t.Hadir,t.Terlambat,t['Terlambat dengan Izin'],t.Izin,t.Sakit,t.Alpa,t.Total]:mode==='class'?[first.cls,new Set(arr.map(r=>r.name)).size,t.Hadir,t.Terlambat,t['Terlambat dengan Izin'],t.Izin,t.Sakit,t.Alpa,t.Total]:[first.date,first.cls,first.subject,t.Hadir,t.Terlambat,t['Terlambat dengan Izin'],t.Izin,t.Sakit,t.Alpa,t.Total]);});
   } else display=rows.map(r=>[r.date,r.name,r.cls,r.subject,r.time,r.status]);
   if(!display.length){const tr=document.createElement('tr'),td=document.createElement('td');td.colSpan=headers.length;td.textContent='Belum ada catatan absensi pada periode ini.';tr.appendChild(td);body.replaceChildren(tr);} else {body.replaceChildren();display.forEach(row=>{const tr=document.createElement('tr');row.forEach(v=>{const td=document.createElement('td');td.textContent=v??'—';tr.appendChild(td)});body.appendChild(tr)});} 
   const statusOf=r=>String(r.status||'').toLocaleLowerCase('id-ID');
   const count=(needle)=>rows.filter(r=>statusOf(r).includes(needle)).length;
   const hadir=rows.filter(r=>statusOf(r).includes('hadir')&&!statusOf(r).includes('terlambat')).length;
-  const telat=count('terlambat'), izin=count('izin'), sakit=count('sakit'), alpa=count('alpa');
-  $('countAll').textContent=rows.length; $('countHadir').textContent=hadir; $('countTerlambat').textContent=telat; $('countIzin').textContent=izin; $('countSakit').textContent=sakit; $('countAlpa').textContent=alpa;
+  const telat=rows.filter(r=>statusOf(r).includes('terlambat')&&!statusOf(r).includes('izin')).length, telatIzin=rows.filter(r=>statusOf(r).includes('terlambat')&&statusOf(r).includes('izin')).length, izin=rows.filter(r=>statusOf(r).includes('izin')&&!statusOf(r).includes('terlambat')).length, sakit=count('sakit'), alpa=count('alpa');
+  $('countAll').textContent=rows.length; $('countHadir').textContent=hadir; $('countTerlambat').textContent=telat; $('countTerlambatIzin').textContent=telatIzin; $('countIzin').textContent=izin; $('countSakit').textContent=sakit; $('countAlpa').textContent=alpa;
   const range=recapDateRange();
-  $('recapSummary').textContent=`Periode ${range.start} s.d. ${range.end}: ${rows.length} catatan · Hadir ${hadir} · Terlambat ${telat} · Izin ${izin} · Sakit ${sakit} · Alpa ${alpa}.`;
+  $('recapSummary').textContent=`Periode ${range.start} s.d. ${range.end}: ${rows.length} catatan · Hadir ${hadir} · Terlambat ${telat} · Terlambat dengan Izin ${telatIzin} · Izin ${izin} · Sakit ${sakit} · Alpa ${alpa}.`;
 }
 $('applyRecap')?.addEventListener('click',renderPeriodRecap);
 $('recapName')?.addEventListener('change',renderPeriodRecap);
@@ -1549,34 +1550,54 @@ function shareDailyAttendanceWhatsApp() {
     statusEl.textContent = 'Belum ada daftar siswa untuk kelas ' + cls + '.';
     return;
   }
-  const counts = {Hadir:0, Terlambat:0, Izin:0, Sakit:0, Alpa:0, 'Belum hadir':0};
+  const counts = {Hadir:0, Terlambat:0, 'Terlambat dengan Izin':0, Izin:0, Sakit:0, Alpa:0, 'Belum hadir':0};
   const detailLines = [];
+  const lateWithPermissionLines = [];
   roster.forEach(student => {
     const rec = attendance[student.id];
     let state = rec?.status || 'Belum hadir';
-    if (!Object.prototype.hasOwnProperty.call(counts, state)) state = state.toLowerCase().includes('terlambat') ? 'Terlambat' : state;
+    if (!Object.prototype.hasOwnProperty.call(counts, state) && state.toLocaleLowerCase('id-ID').includes('terlambat')) state = state.toLocaleLowerCase('id-ID').includes('izin') ? 'Terlambat dengan Izin' : 'Terlambat';
     if (!Object.prototype.hasOwnProperty.call(counts, state)) state = 'Hadir';
     counts[state]++;
     if (['Izin', 'Sakit', 'Alpa'].includes(state)) {
       detailLines.push(`${student.name || 'Tanpa nama'} — ${state}${rec?.time ? ' ('+rec.time+')' : ''}`);
     }
+    if (state === 'Terlambat dengan Izin') lateWithPermissionLines.push(`${student.name || 'Tanpa nama'}${rec?.time ? ' — ' + rec.time : ''}`);
   });
   const date = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
   const message = [
-    'LAPORAN ABSENSI HARIAN — SAPA',
-    `Tanggal: ${date}`,
-    `Kelas: ${cls}`,
-    `Mata pelajaran: ${subject}`,
+    '📋 *𝐋𝐀𝐏𝐎𝐑𝐀𝐍 𝐀𝐁𝐒𝐄𝐍𝐒𝐈 𝐇𝐀𝐑𝐈𝐀𝐍*',
+    '✨ _SAPA • Sistem Absensi Pintar dan Akurat_',
+    '━━━━━━━━━━━━━━━━━━',
+    `📅 *Tanggal:* ${date}`,
+    `🏫 *Kelas:* ${cls}`,
+    `📚 *Mata Pelajaran:* ${subject}`,
     '',
-    `Ringkasan: ${roster.length} siswa`,
-    `Hadir: ${counts.Hadir} | Terlambat: ${counts.Terlambat}`,
-    `Izin: ${counts.Izin} | Sakit: ${counts.Sakit} | Alpa: ${counts.Alpa}`,
-    `Belum hadir: ${counts['Belum hadir']}`,
+    '📊 *RINGKASAN KEHADIRAN*',
+    `👥 Total siswa: *${roster.length}*`,
+    `✅ Hadir: ${counts.Hadir} siswa`,
+    `⏰ Terlambat: ${counts.Terlambat} siswa`,
+    `🕒 Terlambat dengan Izin: ${counts['Terlambat dengan Izin']} siswa`,
+    `📝 Izin: ${counts.Izin} siswa`,
+    `🤒 Sakit: ${counts.Sakit} siswa`,
+    `❗ Alpa: ${counts.Alpa} siswa`,
+    `⚪ Belum hadir: ${counts['Belum hadir']} siswa`,
     '',
-    'Detail siswa (Izin, Sakit, Alpa):',
-    ...(detailLines.length ? detailLines : ['Tidak ada siswa dengan status Izin, Sakit, atau Alpa.']),
+    '🔎 *DETAIL SISWA*',
+    '🕒 *Terlambat dengan Izin*',
+    ...(lateWithPermissionLines.length ? lateWithPermissionLines.map(line => '• ' + line) : ['Tidak ada']),
     '',
-    'Dibuat melalui SAPA — Sistem Absensi Pintar dan Akurat.'
+    '_(Detail berikut hanya menampilkan siswa Izin, Sakit, dan Alpa)_',
+    ...(detailLines.length ? detailLines.map(line => {
+      const parts = line.split(' — ');
+      const status = (parts[1] || '').split(' (')[0];
+      const mark = status === 'Izin' ? '📝' : status === 'Sakit' ? '🤒' : '❗';
+      return `${mark} ${parts[0]} — *${parts[1] || status}*`;
+    }) : ['🎉 Tidak ada siswa dengan status Izin, Sakit, atau Alpa.']),
+    '',
+    '━━━━━━━━━━━━━━━━━━',
+    '🙏 _Mohon tindak lanjut bila diperlukan._',
+    '📲 _Dikirim melalui SAPA_'
   ].join('\n');
   let phone = normalizeWaliPhone($('waliPhone')?.value || '');
   if (phone && !/^62[0-9]{8,13}$/.test(phone)) {
