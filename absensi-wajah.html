@@ -367,6 +367,14 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
 }
 </style>
 
+
+<style>
+/* SAPA: tombol edit status kehadiran */
+.attendance-edit-actions{display:flex;flex-wrap:wrap;gap:6px;min-width:240px}
+.attendance-edit-actions button{font-size:.82rem;padding:7px 9px;min-height:34px}
+.attendance-edit-actions button[aria-label*='Terlambat']{border-color:#d99a18}
+@media(max-width:700px){.attendance-edit-actions{min-width:220px}.attendance-edit-actions button{min-height:38px}}
+</style>
 </head>
 <body>
 <main class="wrap">
@@ -400,8 +408,18 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
 <h2>Daftar Kehadiran</h2>
 <div class="live-count"><span class="muted" id="liveSessionLabel">Pilih kelas sesi untuk melihat daftar siswa.</span><strong><span id="livePresentCount">0</span> / <span id="liveTotalCount">0</span> hadir</strong></div>
 <div class="status" id="liveAttendanceStatus" role="status" aria-live="polite">Saat wajah dikenali, nama dan waktu kehadiran akan muncul otomatis di sini.</div>
-<div class="actions"><button id="resetAttendanceLive" type="button">Reset Kehadiran Sesi Ini</button></div>
-<div class="scroll live-table-wrap"><table><thead><tr><th>No.</th><th>Nama siswa</th><th>Kelas</th><th>Waktu</th><th>Status</th><th>Edit status</th></tr></thead><tbody id="liveAttendanceRows"><tr><td colspan="6">Pilih kelas sesi terlebih dahulu.</td></tr></tbody></table></div>
+<div class="actions"><button id="resetLiveAttendance" type="button">Reset Kehadiran</button></div>
+<div class="panel" style="margin-top:12px;padding:14px;background:var(--surface,#f8fafc)">
+  <h3 style="margin-top:0">Bagikan Absen Harian ke WhatsApp Walas</h3>
+  <p class="muted">Kirim ringkasan kelas sesi yang sedang dipilih, termasuk status siswa yang belum hadir. Periksa ringkasan sebelum mengirim.</p>
+  <label for="waliPhone">Nomor WhatsApp walas kelas yang dipilih</label>
+  <input id="waliPhone" type="tel" inputmode="tel" autocomplete="tel" placeholder="Contoh: 081234567890">
+  <div class="actions"><button id="saveWaliPhone" type="button">Simpan nomor walas</button><button id="deleteWaliPhone" type="button">Hapus nomor tersimpan</button></div>
+  <p id="waliPhoneStatus" class="muted" role="status" aria-live="polite">Pilih kelas untuk melihat atau mengatur nomor walasnya. Nomor tersimpan di browser ini.</p>
+  <div class="actions"><button id="shareAttendanceWhatsApp" class="primary" type="button">Bagikan Absen via WhatsApp</button></div>
+  <p id="shareAttendanceStatus" class="muted" role="status" aria-live="polite">Pilih kelas sesi terlebih dahulu. WhatsApp akan terbuka untuk Anda meninjau dan mengirim pesan.</p>
+</div>
+<div class="scroll live-table-wrap"><table><thead><tr><th>No.</th><th>Nama siswa</th><th>Kelas</th><th>Waktu</th><th>Status</th><th>Edit Kehadiran</th></tr></thead><tbody id="liveAttendanceRows"><tr><td colspan="6">Pilih kelas sesi terlebih dahulu.</td></tr></tbody></table></div>
 </section>
 <section class="panel">
 <h2>Pengaturan Jam Masuk</h2>
@@ -535,7 +553,7 @@ main.wrap > .grid[data-active-tab="3"] > section.panel:has(#scheduleClass) tbody
 <details style="margin-top:18px"><summary>Rekap sesi saat ini</summary>
 <h3>Daftar siswa & rekap sesi</h3>
 <p>Terdaftar: <strong id="studentCount">0</strong> · Hadir: <strong id="presentCount">0</strong></p>
-<div class="actions"><button id="exportCsv" type="button">Ekspor CSV</button><button id="resetAttendance" type="button">Reset hadir sesi ini</button></div>
+<div class="actions"><button id="exportCsv" type="button">Ekspor CSV</button><button id="resetAttendance" type="button">Reset Kehadiran Sesi</button></div>
 <div class="scroll"><table><thead><tr><th>Nama</th><th>Kelas</th><th>Status</th><th>Aksi</th></tr></thead><tbody id="studentRows"><tr><td colspan="4">Belum ada siswa terdaftar.</td></tr></tbody></table></div>
 </details>
 </section>
@@ -553,6 +571,9 @@ const STORAGE_KEY = 'awc-face-demo-v2';
 const SCHEDULE_KEY = 'awc-face-schedules-v1';
 const CLASS_KEY = 'awc-face-classes-v1';
 const ATTENDANCE_KEY = 'awc-attendance-sessions-v1';
+const WALAS_PHONE_KEY = 'sapa-walas-phone-by-class-v1';
+let waliPhones = {};
+try { const savedPhones = JSON.parse(localStorage.getItem(WALAS_PHONE_KEY) || '{}'); waliPhones = savedPhones && typeof savedPhones === 'object' ? savedPhones : {}; } catch (_) {}
 let classNames = [];
 let schedules = {};
 let stream = null, modelReady = false, students = [], attendance = {};
@@ -995,8 +1016,37 @@ function saveAttendanceSession() {
     return false;
   }
 }
+function loadWaliPhoneForClass() {
+  const cls = ($('sessionClass')?.value || '').trim();
+  $('waliPhone').value = cls ? (waliPhones[cls] || '') : '';
+  $('waliPhoneStatus').textContent = !cls ? 'Pilih kelas untuk melihat atau mengatur nomor walasnya. Nomor tersimpan di browser ini.' : (waliPhones[cls] ? 'Nomor walas ' + cls + ' sudah tersimpan.' : 'Belum ada nomor tersimpan untuk kelas ' + cls + '.');
+}
+function normalizeWaliPhone(raw) {
+  let phone = String(raw || '').trim().replace(/[\s()+.-]/g, '');
+  if (phone.startsWith('0')) phone = '62' + phone.slice(1);
+  return phone;
+}
+$('saveWaliPhone')?.addEventListener('click', () => {
+  const cls = ($('sessionClass')?.value || '').trim();
+  const status = $('waliPhoneStatus');
+  if (!cls) { status.textContent = 'Pilih kelas sesi terlebih dahulu.'; $('sessionClass')?.focus(); return; }
+  const phone = normalizeWaliPhone($('waliPhone').value);
+  if (!/^62[0-9]{8,13}$/.test(phone)) { status.textContent = 'Nomor belum valid. Masukkan nomor Indonesia, misalnya 081234567890.'; $('waliPhone').focus(); return; }
+  waliPhones[cls] = phone;
+  try { localStorage.setItem(WALAS_PHONE_KEY, JSON.stringify(waliPhones)); status.textContent = 'Nomor WhatsApp walas kelas ' + cls + ' berhasil disimpan.'; }
+  catch (e) { status.textContent = 'Nomor gagal disimpan di browser: ' + e.message; }
+});
+$('deleteWaliPhone')?.addEventListener('click', () => {
+  const cls = ($('sessionClass')?.value || '').trim();
+  const status = $('waliPhoneStatus');
+  if (!cls) { status.textContent = 'Pilih kelas sesi terlebih dahulu.'; $('sessionClass')?.focus(); return; }
+  delete waliPhones[cls];
+  try { localStorage.setItem(WALAS_PHONE_KEY, JSON.stringify(waliPhones)); $('waliPhone').value = ''; status.textContent = 'Nomor walas kelas ' + cls + ' sudah dihapus.'; }
+  catch (e) { status.textContent = 'Nomor gagal dihapus dari penyimpanan browser: ' + e.message; }
+});
 function loadAttendanceSession() {
   attendance = attendanceSessions[currentSessionKey()] || {};
+  loadWaliPhoneForClass();
   render();
 }
 $('sessionClass').addEventListener('change', loadAttendanceSession);
@@ -1060,22 +1110,24 @@ function renderLiveAttendance() {
     const statusTd=document.createElement('td'), pill=document.createElement('span');
     pill.className='status-pill' + (record ? (String(record.status).toLocaleLowerCase('id-ID').includes('terlambat') ? ' late' : ' present') : '');
     pill.textContent=record ? record.status : 'Belum hadir'; statusTd.appendChild(pill); tr.appendChild(statusTd);
-    const editTd=document.createElement('td');
-    const editSelect=document.createElement('select'); editSelect.setAttribute('aria-label','Ubah status kehadiran '+(student.name||''));
-    [['Hadir','Hadir'],['Terlambat','Terlambat'],['Izin','Izin'],['Sakit','Sakit'],['Alpa','Alpa'],['Belum hadir','Belum hadir']].forEach(([label,value])=>{const opt=new Option(label,value);editSelect.add(opt);});
-    editSelect.value=record?.status||'Belum hadir'; editSelect.style.minWidth='112px';
-    const saveBtn=document.createElement('button'); saveBtn.type='button'; saveBtn.textContent='Simpan'; saveBtn.style.marginTop='6px';
-    saveBtn.addEventListener('click',()=>{
-      const status=editSelect.value;
-      if(status==='Belum hadir') { delete attendance[student.id]; }
-      else {
+    const editTd=document.createElement('td'), editActions=document.createElement('div');
+    editActions.className='actions attendance-edit-actions';
+    [['Hadir','Hadir'],['Terlambat','Terlambat'],['Izin','Izin'],['Sakit','Sakit'],['Alpa','Alpa']].forEach(([label,status])=>{
+      const button=document.createElement('button'); button.type='button'; button.textContent=label;
+      button.setAttribute('aria-label', 'Ubah kehadiran '+(student.name||'siswa')+' menjadi '+status);
+      if(record && (record.status===status || (status==='Hadir' && String(record.status).includes('Terlambat')))) button.classList.add('primary');
+      button.addEventListener('click',()=>{
         const now=new Date();
-        attendance[student.id]={...(attendance[student.id]||{}),date:now.toLocaleDateString('sv-SE'),time:now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit',hour12:false}),subject:subject||$('subject').value||'',status,scheduledStart:scheduleFor(student.cls).start,graceMinutes:scheduleFor(student.cls).grace};
-      }
-      saveAttendanceSession(); render();
-      setStatus('liveAttendanceStatus','Status '+student.name+' diperbarui menjadi '+status+'.','success');
+        const schedule= scheduleFor(student.cls, subject);
+        attendance[student.id]={...(attendance[student.id]||{}),date:record?.date||now.toLocaleDateString('sv-SE'),time:record?.time||now.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}),subject:record?.subject||subject, status: status==='Hadir' ? statusFor(student.cls, now, subject) : status, scheduledStart:record?.scheduledStart||schedule.start||'07:00',graceMinutes:record?.graceMinutes??Number(schedule.grace??10),manualEdit:true};
+        saveAttendanceSession(); render();
+        setStatus('cameraStatus','Status kehadiran '+(student.name||'siswa')+' diubah menjadi '+attendance[student.id].status+'.','success');
+      });
+      editActions.appendChild(button);
     });
-    editTd.append(editSelect,saveBtn); tr.appendChild(editTd);
+    const clearButton=document.createElement('button'); clearButton.type='button'; clearButton.textContent='Kosongkan';
+    clearButton.addEventListener('click',()=>{ if(confirm('Kosongkan catatan kehadiran '+(student.name||'siswa')+' untuk sesi ini?')){delete attendance[student.id];saveAttendanceSession();render();} });
+    editActions.appendChild(clearButton); editTd.appendChild(editActions); tr.appendChild(editTd);
     body.appendChild(tr);
   });
 }
@@ -1461,18 +1513,83 @@ function startAutoRecognition() {
   autoTimer = setTimeout(scan, 500);
 }
 $('recognize').addEventListener('click', () => recognizeOnce(true));
-$('resetAttendance').addEventListener('click', () => {
-  if (confirm('Reset status hadir untuk kelas, mata pelajaran, dan tanggal ini?')) { attendance = {}; saveAttendanceSession(); render(); }
-});
-$('resetAttendanceLive').addEventListener('click', () => {
-  const cls=$('sessionClass')?.value||'';
-  const subject=($('subject')?.value||'').trim();
-  if(!cls){alert('Pilih kelas sesi terlebih dahulu agar reset tidak mengenai sesi yang salah.');return;}
-  if(confirm('Reset semua catatan kehadiran untuk kelas '+cls+', mata pelajaran '+(subject||'(kosong)')+', tanggal hari ini? Data sesi ini akan dikosongkan, tetapi data siswa dan wajah tetap aman.')){
-    attendance={}; saveAttendanceSession(); render();
-    setStatus('liveAttendanceStatus','Kehadiran sesi ini telah direset. Data siswa dan template wajah tidak dihapus.','success');
+function resetCurrentAttendance() {
+  const cls = $('sessionClass')?.value || '';
+  const subject = ($('subject')?.value || '').trim();
+  const date = new Date().toLocaleDateString('sv-SE');
+  const count = Object.keys(attendance || {}).length;
+  const scope = [cls || 'kelas yang sedang dipilih', subject || 'semua mata pelajaran pada sesi', date].join(' · ');
+  if (!cls) {
+    setStatus('cameraStatus', 'Pilih kelas sesi terlebih dahulu sebelum mereset kehadiran.', 'error');
+    return;
   }
-});
+  if (!count) {
+    setStatus('cameraStatus', 'Belum ada catatan kehadiran untuk direset pada sesi ini.', 'info');
+    return;
+  }
+  if (confirm('RESET KEHADIRAN SESI?\n\nSesi: ' + scope + '\nCatatan yang akan dikosongkan: ' + count + ' siswa.\n\nData siswa, kelas, jadwal, dan template wajah tidak akan dihapus. Tindakan ini tidak dapat diurungkan. Lanjutkan?')) {
+    attendance = {}; saveAttendanceSession(); render();
+    setStatus('cameraStatus', 'Kehadiran sesi ' + (cls || '') + ' telah direset (' + count + ' catatan). Data siswa dan template wajah tetap tersimpan.', 'success');
+  }
+}
+$('resetAttendance').addEventListener('click', resetCurrentAttendance);
+$('resetLiveAttendance')?.addEventListener('click', resetCurrentAttendance);
+
+function shareDailyAttendanceWhatsApp() {
+  const cls = ($('sessionClass')?.value || '').trim();
+  const subject = ($('subject')?.value || '').trim() || 'Tidak ditentukan';
+  const statusEl = $('shareAttendanceStatus');
+  if (!cls) {
+    statusEl.textContent = 'Pilih kelas sesi terlebih dahulu sebelum membagikan absensi.';
+    $('sessionClass')?.focus();
+    return;
+  }
+  const roster = students.filter(s => s.cls === cls).slice().sort((a,b) => (a.name||'').localeCompare(b.name||'', 'id'));
+  if (!roster.length) {
+    statusEl.textContent = 'Belum ada daftar siswa untuk kelas ' + cls + '.';
+    return;
+  }
+  const counts = {Hadir:0, Terlambat:0, Izin:0, Sakit:0, Alpa:0, 'Belum hadir':0};
+  const detailLines = [];
+  roster.forEach(student => {
+    const rec = attendance[student.id];
+    let state = rec?.status || 'Belum hadir';
+    if (!Object.prototype.hasOwnProperty.call(counts, state)) state = state.toLowerCase().includes('terlambat') ? 'Terlambat' : state;
+    if (!Object.prototype.hasOwnProperty.call(counts, state)) state = 'Hadir';
+    counts[state]++;
+    if (['Izin', 'Sakit', 'Alpa'].includes(state)) {
+      detailLines.push(`${student.name || 'Tanpa nama'} — ${state}${rec?.time ? ' ('+rec.time+')' : ''}`);
+    }
+  });
+  const date = new Date().toLocaleDateString('id-ID', {weekday:'long', day:'2-digit', month:'long', year:'numeric'});
+  const message = [
+    'LAPORAN ABSENSI HARIAN — SAPA',
+    `Tanggal: ${date}`,
+    `Kelas: ${cls}`,
+    `Mata pelajaran: ${subject}`,
+    '',
+    `Ringkasan: ${roster.length} siswa`,
+    `Hadir: ${counts.Hadir} | Terlambat: ${counts.Terlambat}`,
+    `Izin: ${counts.Izin} | Sakit: ${counts.Sakit} | Alpa: ${counts.Alpa}`,
+    `Belum hadir: ${counts['Belum hadir']}`,
+    '',
+    'Detail siswa (Izin, Sakit, Alpa):',
+    ...(detailLines.length ? detailLines : ['Tidak ada siswa dengan status Izin, Sakit, atau Alpa.']),
+    '',
+    'Dibuat melalui SAPA — Sistem Absensi Pintar dan Akurat.'
+  ].join('\n');
+  let phone = normalizeWaliPhone($('waliPhone')?.value || '');
+  if (phone && !/^62[0-9]{8,13}$/.test(phone)) {
+    statusEl.textContent = 'Nomor tidak valid. Gunakan nomor Indonesia, misalnya 081234567890 atau 6281234567890.';
+    $('waliPhone')?.focus();
+    return;
+  }
+  const url = 'https://wa.me/' + (phone || '') + '?text=' + encodeURIComponent(message);
+  statusEl.textContent = 'Ringkasan dibuat untuk kelas ' + cls + '. Tinjau pesan di WhatsApp, lalu tekan Kirim.';
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+$('shareAttendanceWhatsApp')?.addEventListener('click', shareDailyAttendanceWhatsApp);
+
 $('exportCsv').addEventListener('click', () => {
   const rows = [['Nama','Kode','Kelas','Tanggal','Waktu terdeteksi','Mata pelajaran','Status','Jam masuk terjadwal','Toleransi (menit)'],
     ...students.map(s => [s.name,s.code,s.cls,attendance[s.id]?.date||'',attendance[s.id]?.time||'',attendance[s.id]?.subject||$('subject').value,attendance[s.id]?.status||'Belum hadir',attendance[s.id]?.scheduledStart||scheduleFor(s.cls).start,attendance[s.id]?.graceMinutes??scheduleFor(s.cls).grace])];
